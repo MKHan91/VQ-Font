@@ -47,7 +47,7 @@ def setup_args_and_config():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("name")
-    parser.add_argument("config_paths", nargs="+", help="path/to/config.yaml")
+    parser.add_argument("--config_paths", nargs="+", help="path/to/config.yaml")
     parser.add_argument("--resume", default=None, help="path/to/saved/.pth")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 

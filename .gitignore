@@ -1,0 +1,9 @@
+datasets/content_font_image
+datasets/handwrite_dataset
+datasets/reference_font_image
+datasets/train_font_image
+datasets/train_font_ttf
+datasets/valid_font_image
+datasets/valid_font_ttf
+logs/
+*.pyc

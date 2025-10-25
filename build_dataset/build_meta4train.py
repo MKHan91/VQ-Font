@@ -152,12 +152,18 @@ def build_train_meta(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--saving_dir", help="directory where your lmdb file will be saved")
-    parser.add_argument("--content_font", help="root path of the content font images")
-    parser.add_argument("--train_font_dir", help="root path of the training font images")
-    parser.add_argument("--val_font_dir", help="root path of the validation font images")
-    parser.add_argument("--seen_unis_file", help="json file of seen characters")
-    parser.add_argument("--unseen_unis_file", help="json file of unseen characters")
+    parser.add_argument("--saving_dir", help="directory where your lmdb file will be saved",
+                        default='/home/dev/VQ-Font/datasets/handwrite_dataset')
+    parser.add_argument("--content_font", help="root path of the content font images",
+                        default='/home/dev/VQ-Font/datasets/content_font_image/NanumBarunpenR')
+    parser.add_argument("--train_font_dir", help="root path of the training font images",
+                        default='/home/dev/VQ-Font/datasets/train_font_image')
+    parser.add_argument("--val_font_dir", help="root path of the validation font images",
+                        default='/home/dev/VQ-Font/datasets/valid_font_image')
+    parser.add_argument("--seen_unis_file", help="json file of seen characters",
+                        default="/home/dev/VQ-Font/train_unis.json")
+    parser.add_argument("--unseen_unis_file", help="json file of unseen characters",
+                        default="/home/dev/VQ-Font/val_unis.json")
     args = parser.parse_args()
     build_meta4train_lmdb(args)
     build_train_meta(args)

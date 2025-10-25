@@ -9,6 +9,7 @@ from models.content_encoder import content_enc_builder
 from models.decoder import dec_builder
 
 
+# region - VQModel
 class VQModel(pl.LightningModule):
     def __init__(self,
                  ddconfig,
@@ -81,6 +82,7 @@ class VQModel(pl.LightningModule):
         x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
         return x.float()
 
+    # region - training_step
     def training_step(self, batch, batch_idx, optimizer_idx):
         x = self.get_input(batch, self.image_key)
         xrec, qloss = self(x)
@@ -102,6 +104,7 @@ class VQModel(pl.LightningModule):
             self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=True)
             return discloss
 
+    # region - validation_step
     def validation_step(self, batch, batch_idx):
         x = self.get_input(batch, self.image_key)
         xrec, qloss = self(x)
@@ -110,11 +113,15 @@ class VQModel(pl.LightningModule):
 
         discloss, log_dict_disc = self.loss(qloss, x, xrec, 1, self.global_step,
                                             last_layer=self.get_last_layer(), split="val")
+        self.log("val/aeloss", aeloss,
+                   prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+        
         rec_loss = log_dict_ae["val/rec_loss"]
         self.log("val/rec_loss", rec_loss,
                    prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
-        self.log("val/aeloss", aeloss,
-                   prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+        
+        del log_dict_ae['val/rec_loss']
+      
         self.log_dict(log_dict_ae)
         self.log_dict(log_dict_disc)
         return self.log_dict
@@ -158,6 +165,7 @@ class VQModel(pl.LightningModule):
         return x
 
 
+# region - VQSegModel
 class VQSegmentationModel(VQModel):
     def __init__(self, n_labels, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -210,6 +218,7 @@ class VQSegmentationModel(VQModel):
         return log
 
 
+# region - VQNoDiscModel
 class VQNoDiscModel(VQModel):
     def __init__(self,
                  ddconfig,
@@ -260,6 +269,8 @@ class VQNoDiscModel(VQModel):
         return optimizer
 
 
+
+# region - GumbelVQ
 class GumbelVQ(VQModel):
     def __init__(self,
                  ddconfig,

@@ -34,11 +34,16 @@ data:
     train:
       target: taming.data.custom.CustomTrain
       params:
-        training_images_list_file: vqgan_data/train.txt
+        training_images_list_file: /home/dev/VQ-Font/vqgan_data/train_custom.txt
         size: 128
     validation:
       target: taming.data.custom.CustomTest
       params:
-        test_images_list_file: vqgan_data/valid.txt
+        test_images_list_file: /home/dev/VQ-Font/vqgan_data/valid_custom.txt
         size: 128
 
+lightning:
+  trainer:
+    accelerator: "gpu"
+    devices: 1
+    # gpus: "0"  # 0번 GPU 사용
