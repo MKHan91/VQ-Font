@@ -27,6 +27,9 @@ cv_n_unis: 30 # 30
 cv_n_fonts: 10 # 10
 
 print_freq: 1
-val_freq: 10000
-save_freq: 10000
-tb_freq: 10000
+# val_freq: 10000
+# save_freq: 10000
+# tb_freq: 10000
+val_freq: 10
+save_freq: 10
+tb_freq: 10
