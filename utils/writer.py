@@ -1,6 +1,6 @@
 from pathlib import Path
 from . import save_tensor_to_image
-
+import torch.nn.functional as F
 
 class Writer:
     """

@@ -339,6 +339,8 @@ class BaseTrainer:
                 'train/d_fake_font': discs.fake_font.val,
                 'train/d_fake_uni': discs.fake_uni.val,
             })
+            
+        return tag_scalar_dic
 
 
     def log(self, losses, discs, stats):

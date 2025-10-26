@@ -96,7 +96,9 @@ def train(args, cfg, ddp_gpu=-1):
     image_scale = 0.6
     writer_path = cfg.work_dir / "runs" / cfg.unique_name
     eval_image_path = cfg.work_dir / "images" / cfg.unique_name
-    writer = utils.TBDiskWriter(writer_path, eval_image_path, scale=image_scale)
+    
+    # writer = utils.TBDiskWriter(writer_path, eval_image_path, scale=image_scale)
+    writer = utils.TBWriter(writer_path, scale=image_scale)
 
     args_str = dump_args(args)
     #if is_main_worker(ddp_gpu):

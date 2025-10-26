@@ -111,8 +111,11 @@ class Evaluator:
         compare_batches ,metrics= self.infer_loader(gen, loader, kshot, reduction=reduction)
 
         comparable_grid = utils.make_comparable_grid(*compare_batches[::-1], nrow=n_row)
-        self.writer.add_image(metrics,tag, comparable_grid, step)
-        return comparable_grid     
+        # self.writer.add_image(metrics,tag, comparable_grid, step)
+        self.writer.add_scalars(metrics, step)
+        self.writer.add_image(tag, comparable_grid, step)
+        
+        return comparable_grid
 
     @paddle_eval
     def infer_loader(self, gen, loader, kshot, reduction="mean"):

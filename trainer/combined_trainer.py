@@ -16,7 +16,6 @@ class CombinedTrainer(BaseTrainer):
         super().__init__(ddp_gpu,gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
                          logger, evaluator, cv_loaders, cfg)
 
-        
     def train(self, loader, st_step=1, max_step=100000):
         """
         train
@@ -132,7 +131,7 @@ class CombinedTrainer(BaseTrainer):
                 # EMA g
                 self.accum_g()
                 if self.step % self.cfg['tb_freq'] == 0:
-                    self.baseplot(losses, discs, stats)
+                    tag_scalar_dic = self.baseplot(losses, discs, stats)
 
                 if self.step % self.cfg['print_freq'] == 0:
                     self.log(losses, discs, stats)
