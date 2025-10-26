@@ -14,6 +14,8 @@ import cv2
 from skimage import morphology
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+
+# region - Train
 class CombTrainDataset(Dataset):
     """
     CombTrainDataset
@@ -151,7 +153,9 @@ class CombTrainDataset(Dataset):
         
         return ret
 
-class   CombTestDataset(Dataset):
+
+# region - Test
+class CombTestDataset(Dataset):
     """
     CombTestDataset
     """

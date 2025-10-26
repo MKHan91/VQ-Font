@@ -48,7 +48,7 @@ def setup_args_and_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="CustomHandwrite")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom.yaml"])
-    parser.add_argument("--resume", default="/home/dev/VQ-Font/logs/2025-10-25T10-33-19_custom_vqgan/checkpoints/last.ckpt")
+    parser.add_argument("--resume", default=False)
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()

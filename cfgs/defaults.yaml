@@ -5,7 +5,7 @@ comb_iter: 800000
 seed: 2
 g_lr: 2e-4
 d_lr: 6e-4
-n_workers: 1
+n_workers: 0
 adam_betas: [0.0, 0.9]
 init: kaiming
 

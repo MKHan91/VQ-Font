@@ -9,3 +9,4 @@ logs/
 *.pyc
 .vscode
 *.tar.gz
+results

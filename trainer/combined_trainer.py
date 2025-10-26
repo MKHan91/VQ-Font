@@ -33,11 +33,14 @@ class CombinedTrainer(BaseTrainer):
         self.step = st_step
         self.clear_losses()
         self.logger.info("Start training ...")
-        with open('meta/stru.json','r') as f:
+        
+        with open('/home/dev/VQ-Font/structure_tags.json','r') as f:
             stru_map = json.load(f,strict=False)
-        with open('meta/cr_mapping.json','r') as f:
+        with open('/home/dev/VQ-Font/cr_mapping.json','r') as f:
             cr_map = json.load(f,strict=False)
-
+        with open('/home/dev/VQ-Font/de.json','r') as f:
+            de = json.load(f,strict=False)
+            
         while True:
             for (in_style_ids, in_imgs,in_imgs_ske,
                  trg_style_ids, trg_uni_ids, trg_imgs, content_imgs, content_imgs_ske,trg_unis, style_sample_index, trg_sample_index) in loader:
@@ -96,7 +99,8 @@ class CombinedTrainer(BaseTrainer):
                 ##############################################################
                 # infer
                 ##############################################################
-                quant, emb_loss, info ,gt_feat= self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
+                # quant, emb_loss, info ,gt_feat= self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
+                quant, emb_loss, info = self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
                 tar = self.gen.vqgan.decode(quant)
                 sc_feats = self.gen.encode_write_comb(in_style_ids, style_sample_index, in_imgs,in_imgs_crose,in_imgs_fine,in_stru_ids)
                 out, z_e_x,_,z_q_x ,indice_out= self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,in_stru_ids) #fake_img

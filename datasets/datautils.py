@@ -9,7 +9,7 @@ def uniform_indice(end, n_sample, duplicate=False, st=None):
         n_sample = end
 
     # NOTE with endpoint=False, np.linspace does not sample the `end` value
-    indice = np.linspace(0, end, num=n_sample, dtype=np.int, endpoint=False)
+    indice = np.linspace(0, end, num=n_sample, dtype=int, endpoint=False)
     if st is None and end:
         st = (end-1 - indice[-1]) // 2
     return indice + st

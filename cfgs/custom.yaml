@@ -6,14 +6,14 @@ work_dir: ./results/baseline/
 data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb/  # path/to/saved/lmdb
 data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json  # meta/train.json
 content_reference_json: /home/dev/VQ-Font/cr_mapping.json
-content_font: "handwrite"
+content_font: "NanumBarunpenR"
 
 input_size: 128
 num_heads: 8
 kshot: 3
 
 batch_size: 32
-n_workers: 6
+n_workers: 0
 iter: 1500001
 g_lr: 2e-4
 d_lr: 8e-4
