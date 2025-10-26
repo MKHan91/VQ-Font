@@ -8,3 +8,4 @@ datasets/valid_font_ttf
 logs/
 *.pyc
 .vscode
+*.tar.gz
