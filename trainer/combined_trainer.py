@@ -2,7 +2,7 @@
 from .base_trainer import BaseTrainer
 import utils
 import json
-from basicsr.utils import USMSharp
+# from basicsr.utils import USMSharp
 def is_main_worker(gpu):
     return (gpu <= 0)
 import torch

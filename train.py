@@ -46,9 +46,9 @@ def setup_args_and_config():
     setup_args_and_configs
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("name")
-    parser.add_argument("--config_paths", nargs="+", help="path/to/config.yaml")
-    parser.add_argument("--resume", default=None, help="path/to/saved/.pth")
+    parser.add_argument("--name", default="CustomHandwrite")
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom.yaml"])
+    parser.add_argument("--resume", default="/home/dev/VQ-Font/logs/2025-10-25T10-33-19_custom_vqgan/checkpoints/last.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()
@@ -81,12 +81,13 @@ def setup_args_and_config():
     return args, cfg
 
 
-def train(args, cfg,ddp_gpu=-1):
+def train(args, cfg, ddp_gpu=-1):
     """
     train
     """
-    cfg.gpu = ddp_gpu
-    torch.cuda.set_device(ddp_gpu)
+    # cfg.gpu = ddp_gpu
+    cfg.gpu = 0
+    torch.cuda.set_device(cfg.gpu)
     cudnn.benchmark = True
 
     logger_path = cfg.work_dir / "logs" / "{}.log".format(cfg.unique_name)

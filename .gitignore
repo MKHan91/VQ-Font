@@ -7,3 +7,4 @@ datasets/valid_font_image
 datasets/valid_font_ttf
 logs/
 *.pyc
+.vscode

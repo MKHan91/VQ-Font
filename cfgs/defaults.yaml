@@ -10,9 +10,9 @@ adam_betas: [0.0, 0.9]
 init: kaiming
 
 content_font: "Coca-ColaCareFont-TextBlack"
-language: "chn"
+language: "kor"
 
-data_path: /path/to/lmdb
+data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb
 data_meta: meta/train.json
 
 dset_aug:
