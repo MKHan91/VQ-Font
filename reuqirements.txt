@@ -1,9 +1,10 @@
 omegaconf
 lmdb >= 1.2.1
 lpips
-tensorboard==2.7.0
 protobuf==3.20.*
 numpy==1.24.4
-conda install -c conda-forge scikit-image=0.19.3
 pytorch-lightning==1.9.0
 einops
+
+conda install -c conda-forge scikit-image=0.19.3
+conda install -c conda-forge tensorboard
