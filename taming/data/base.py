@@ -45,6 +45,7 @@ class ImagePaths(Dataset):
     def preprocess_image(self, image_path):
         #Image.open打开图片之后是pil类型数据，需要转换为array->np.array
         image = Image.open(image_path)
+        image = image.convert('L')
         # if not image.mode == "RGB":
         #     image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
