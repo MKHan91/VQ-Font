@@ -1,4 +1,7 @@
 import json
+import os
+import os.path as osp
+
 
 def decompose_hangul(code):
     """
@@ -35,10 +38,12 @@ def generate_de_json(output_path='de.json'):
     de_mapping = {}
     
     # 한글 완성형 범위: AC00 ~ D7A3
-    HANGUL_START = 0xAC00
-    HANGUL_END = 0xD7A3
+    # HANGUL_START = 0xAC00
+    # HANGUL_END = 0xD7A3
     
-    for code in range(HANGUL_START, HANGUL_END + 1):
+    # for code in range(HANGUL_START, HANGUL_END + 1):
+    for char in train_chars:
+        code = ord(char)
         decomposed = decompose_hangul(code)
         
         if decomposed:
@@ -114,8 +119,18 @@ def verify_de_json(json_path='de.json'):
 
 
 if __name__ == "__main__":
+    train_data_dir = "/home/dev/VQ-Font/datasets/train_font_image"
+    
+    train_names = []
+    for folderName in os.listdir(train_data_dir):
+        for fileName in os.listdir(osp.join(train_data_dir, folderName)):
+            if ('2' in fileName.split('.')[0]) or ('3' in fileName.split('.')[0]): continue
+            train_names.append(fileName.split('.')[0])
+    
+    train_chars = list(set(train_names))
+    
     # de.json 생성
-    generate_de_json('de.json')
+    generate_de_json('./build_dataset/de.json')
     
     # 검증
-    verify_de_json('de.json')
+    verify_de_json('./build_dataset/de.json')

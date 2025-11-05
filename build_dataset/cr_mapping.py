@@ -1,6 +1,7 @@
 import json
 import random
 import os
+import os.path as osp
 
 from collections import deque
 from collections import Counter
@@ -103,24 +104,38 @@ def decompose_hangul(syllable):
     return [CHOSUNG[chosung], JUNGSUNG[jungsung]] + ([JONGSUNG[jongsung]] if jongsung != 0 else [])
 
 
-start = 0xAC00
-# end = 0xD7A3 + 1
-end = 0xD7A3
+
+# start = 0xAC00
+# end = 0xD7A3
+# T = {}
+# for code in range(start, end + 1):
+#     char = chr(code)
+#     T[char] = decompose_hangul(char)
+
+train_data_dir = "/home/dev/VQ-Font/datasets/train_font_image"
+
+train_names = []
+for folderName in os.listdir(train_data_dir):
+    for fileName in os.listdir(osp.join(train_data_dir, folderName)):
+        if ('2' in fileName.split('.')[0]) or ('3' in fileName.split('.')[0]): continue
+        train_names.append(fileName.split('.')[0])
+train_chars = list(set(train_names))
 
 T = {}
-for code in range(start, end + 1):
-    char = chr(code)
+for char in train_chars:
     T[char] = decompose_hangul(char)
 
 # --------------------------
 # 1️⃣ content character 리스트
 # 예: 한글 완성형 11,172자
-content_chars = [chr(u) for u in range(start, end + 1)]
+# content_chars = [chr(u) for u in range(start, end + 1)]
+content_chars = train_chars
 
 # --------------------------
 # 2️⃣ reference character 리스트 (사용자가 갖고 있는 18개)
 # 예: 18개의 reference 글자를 HEX로 제공했다고 가정
-ref_chars = [char[:-4] for char in os.listdir(r"/home/dev/VQ-Font/datasets/reference_font_image")]
+ref_dir = "/home/dev/VQ-Font/datasets/train_font_image/reference_images"
+ref_chars = [char[:-4] for char in os.listdir(ref_dir) if not (('2' in char) or ('3' in char))]
 
 # --------------------------
 # 3️⃣ C-R mapping 생성
@@ -138,7 +153,7 @@ for idx, ch in enumerate(content_chars):
 # --------------------------
 # 4️⃣ JSON 저장
 print()
-with open("cr_mapping.json", "w", encoding="utf-8") as f:
+with open("./build_dataset/cr_mapping.json", "w", encoding="utf-8") as f:
     json.dump(cr_mapping, f, ensure_ascii=False, indent=2)
 
 print("C-R mapping 생성 완료!")
