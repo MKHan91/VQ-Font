@@ -10,12 +10,14 @@ from skimage.metrics import structural_similarity
 import torch.nn.functional as F
 import lpips
 import json
-with open('/home/dev/VQ-Font/structure_tags.json','r') as f:
+
+
+with open('/home/dev/VQ-Font/build_dataset/structure_tags.json','r') as f:
     stru_map = json.load(f,strict=False)
 
-with open('/home/dev/VQ-Font/cr_mapping.json','r') as f:
+with open('/home/dev/VQ-Font/build_dataset/cr_mapping.json','r') as f:
     cr_map = json.load(f,strict=False)
-with open('/home/dev/VQ-Font/de.json','r') as f:
+with open('/home/dev/VQ-Font/build_dataset/de.json','r') as f:
     de = json.load(f,strict=False)
 def paddle_eval(val_fn):
     @torch.no_grad()
@@ -70,7 +72,7 @@ class Evaluator:
         writer,
         batch_size,
         transform,
-        content_font,
+        # content_font,
         use_half=False,
     ):
 
@@ -81,7 +83,7 @@ class Evaluator:
         self.transform = transform
         self.writer = writer
         self.k_shot = cfg.kshot
-        self.content_font = content_font
+        # self.content_font = content_font
         self.use_half = use_half
         self.size = cfg.input_size
         self.loss_fn_alex = lpips.LPIPS(net='alex') 

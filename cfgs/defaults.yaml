@@ -1,5 +1,5 @@
 overwrite: False
-work_dir: ./result
+work_dir: ./results/baseline2/
 batch_size: 20
 comb_iter: 800000
 seed: 2
@@ -9,11 +9,11 @@ n_workers: 0
 adam_betas: [0.0, 0.9]
 init: kaiming
 
-content_font: "Coca-ColaCareFont-TextBlack"
+content_font: "UhBee_ann"
 language: "kor"
 
 data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb
-data_meta: meta/train.json
+data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json
 
 dset_aug:
   normalize: True

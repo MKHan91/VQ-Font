@@ -34,11 +34,11 @@ class CombinedTrainer(BaseTrainer):
         self.clear_losses()
         self.logger.info("Start training ...")
         
-        with open('/home/dev/VQ-Font/structure_tags.json','r') as f:
+        with open('/home/dev/VQ-Font/build_dataset/structure_tags.json','r') as f:
             stru_map = json.load(f,strict=False)
-        with open('/home/dev/VQ-Font/cr_mapping.json','r') as f:
+        with open('/home/dev/VQ-Font/build_dataset/cr_mapping.json','r') as f:
             cr_map = json.load(f,strict=False)
-        with open('/home/dev/VQ-Font/de.json','r') as f:
+        with open('/home/dev/VQ-Font/build_dataset/de.json','r') as f:
             de = json.load(f,strict=False)
             
         while True:

@@ -9,7 +9,6 @@ train_names = []
 valid_names = []
 for folderName in os.listdir(train_data_dir):
     for fileName in os.listdir(osp.join(train_data_dir, folderName)):
-        if ('2' in fileName.split('.')[0]) or ('3' in fileName.split('.')[0]): continue
         train_names.append(fileName.split('.')[0])
 
 for folderName in os.listdir(valid_data_dir):

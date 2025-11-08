@@ -108,14 +108,11 @@ def train(args, cfg, ddp_gpu=-1):
     logger.info("Unique name: {}".format(cfg.unique_name))
     logger.info("Get dataset ...")
 
-    content_font = cfg.content_font
+    # content_font = cfg.content_font
     trn_transform, val_transform = setup_transforms(cfg)
 
     env = load_lmdb(cfg.data_path)
     env_get = lambda env, x, y, transform: transform(read_data_from_lmdb(env, f'{x}_{y}')['img'])
-    
-    # env_get = lambda env, x, y, transform: transform(read_data_from_lmdb(env, f'{x}_{y}')['img'])
-    
     data_meta = load_json(cfg.data_meta)
 
     get_trn_loader = get_comb_trn_loader
@@ -157,6 +154,7 @@ def train(args, cfg, ddp_gpu=-1):
     g_cls = generator_dispatch()
     gen = g_cls(1, cfg.C, 1, cfg, **g_kwargs)
     gen.cuda()
+    
     # gen.apply(weights_init(cfg.init))
     
     # vq = VectorQuantizedVAE(1,256,1024).cuda()
@@ -219,7 +217,7 @@ def train(args, cfg, ddp_gpu=-1):
                           writer,
                           cfg.batch_size,
                           val_transform,
-                          content_font,
+                        #   content_font,
                           use_half=cfg.use_half
                           )
 

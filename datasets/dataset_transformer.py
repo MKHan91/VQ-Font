@@ -47,19 +47,19 @@ class CombTrainDataset(Dataset):
         try:           
             imgs_ske = [np.asarray(read_data_from_lmdb(self.env,f'{font}_{uni}')['img']) for uni in style_unis]
             for i in range(len(imgs_ske)):
-                _,binary = cv2.threshold(imgs_ske[i],127,255,cv2.THRESH_BINARY_INV)
+                # _,binary = cv2.threshold(imgs_ske[i],127,255,cv2.THRESH_BINARY_INV)
+                _, binary = cv2.threshold(imgs_ske[i], 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
                 binary[binary==255] = 1
                 skeleton0 = morphology.skeletonize(binary)
                 imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
                 # cv2.imwrite("skeleton1.png",imgs_ske[i])
-            
+                
             imgs_ske = torch.cat([self.transform(Image.fromarray(img)) for img in imgs_ske])
             imgs = torch.cat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis]) 
         except:
             return None, None
         # imgs = paddle.concat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis])
 
-        # print(1)
         return imgs,imgs_ske ,list(style_unis)
         
     
@@ -83,9 +83,8 @@ class CombTrainDataset(Dataset):
             avail_unis = self.avails[font_name]
             style_imgs, style_imgs_ske,style_unis = self.sample_pair_style(font_name, trg_unis, avail_unis)
              
-            if style_imgs is None:
-                continue
-                
+            if style_imgs is None: continue
+
             #add trg_imgs
             trg_imgs = torch.cat([self.env_get(self.env, font_name, uni, self.transform)
                                   for uni in trg_unis])

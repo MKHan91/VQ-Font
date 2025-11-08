@@ -5,8 +5,8 @@ datasets/train_font_image
 datasets/train_font_ttf
 datasets/valid_font_image
 datasets/valid_font_ttf
+datasets/__pycache__
 logs/
 *.pyc
-.vscode
 *.tar.gz
 results

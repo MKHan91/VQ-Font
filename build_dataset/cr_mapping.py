@@ -87,14 +87,6 @@ def select_references(content_char, ref_chars, T, top_k=3):
     return selected_refs
 
 
-# 초성 19자
-CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
-
-# 중성 21자
-JUNGSUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ']
-
-# 종성 28자 (0번 = 없음)
-JONGSUNG = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
 def decompose_hangul(syllable):
     """한글 음절을 초성·중성·종성으로 분해"""
     code = ord(syllable) - 0xAC00
@@ -104,56 +96,64 @@ def decompose_hangul(syllable):
     return [CHOSUNG[chosung], JUNGSUNG[jungsung]] + ([JONGSUNG[jongsung]] if jongsung != 0 else [])
 
 
+if __name__ == "__main__":
+    # 초성 19자
+    CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
 
-# start = 0xAC00
-# end = 0xD7A3
-# T = {}
-# for code in range(start, end + 1):
-#     char = chr(code)
-#     T[char] = decompose_hangul(char)
+    # 중성 21자
+    JUNGSUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ']
 
-train_data_dir = "/home/dev/VQ-Font/datasets/train_font_image"
+    # 종성 28자 (0번 = 없음)
+    JONGSUNG = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
 
-train_names = []
-for folderName in os.listdir(train_data_dir):
-    for fileName in os.listdir(osp.join(train_data_dir, folderName)):
-        if ('2' in fileName.split('.')[0]) or ('3' in fileName.split('.')[0]): continue
-        train_names.append(fileName.split('.')[0])
-train_chars = list(set(train_names))
+    start = 0xAC00
+    end = 0xD7A3
+    T = {}
+    for code in range(start, end + 1):
+        char = chr(code)
+        T[char] = decompose_hangul(char)
 
-T = {}
-for char in train_chars:
-    T[char] = decompose_hangul(char)
+    # train_data_dir = "/home/dev/VQ-Font/datasets/train_font_image"
 
-# --------------------------
-# 1️⃣ content character 리스트
-# 예: 한글 완성형 11,172자
-# content_chars = [chr(u) for u in range(start, end + 1)]
-content_chars = train_chars
+    # train_names = []
+    # for folderName in os.listdir(train_data_dir):
+    #     for fileName in os.listdir(osp.join(train_data_dir, folderName)):
+    #         train_names.append(fileName.split('.')[0])
+    # train_chars = list(set(train_names))
 
-# --------------------------
-# 2️⃣ reference character 리스트 (사용자가 갖고 있는 18개)
-# 예: 18개의 reference 글자를 HEX로 제공했다고 가정
-ref_dir = "/home/dev/VQ-Font/datasets/train_font_image/reference_images"
-ref_chars = [char[:-4] for char in os.listdir(ref_dir) if not (('2' in char) or ('3' in char))]
+    # T = {}
+    # for char in train_chars:
+    #     T[char] = decompose_hangul(char)
 
-# --------------------------
-# 3️⃣ C-R mapping 생성
-cr_mapping = {}
-random.seed(42)  # 재현성
-for idx, ch in enumerate(content_chars):
-    print(f'\r {ch} - {idx+1}/{len(content_chars):<100}', end='')
-    # ref_chars에서 3개 랜덤 선택 (중복 없음)
-    # selected_refs = random.sample(ref_chars, 3)
-    selected_refs = select_references(ch, ref_chars, T, top_k=3)
-    
-    # HEX 코드로 변환
-    cr_mapping[hex(ord(ch))[2:].upper()] = [hex(ord(r))[2:].upper() for r in selected_refs]
+    # --------------------------
+    # 1️⃣ content character 리스트
+    # 예: 한글 완성형 11,172자
+    content_chars = [chr(u) for u in range(start, end + 1)]
+    # content_chars = train_chars
 
-# --------------------------
-# 4️⃣ JSON 저장
-print()
-with open("./build_dataset/cr_mapping.json", "w", encoding="utf-8") as f:
-    json.dump(cr_mapping, f, ensure_ascii=False, indent=2)
+    # --------------------------
+    # 2️⃣ reference character 리스트 (사용자가 갖고 있는 18개)
+    # 예: 18개의 reference 글자를 HEX로 제공했다고 가정
+    ref_dir = "/home/dev/VQ-Font/datasets/train_font_image/reference_images"
+    ref_chars = [char[:-4] for char in os.listdir(ref_dir) if not (('2' in char) or ('3' in char))]
 
-print("C-R mapping 생성 완료!")
+    # --------------------------
+    # 3️⃣ C-R mapping 생성
+    cr_mapping = {}
+    random.seed(42)  # 재현성
+    for idx, ch in enumerate(content_chars):
+        print(f'\r {ch} - {idx+1}/{len(content_chars):<100}', end='')
+        # ref_chars에서 3개 랜덤 선택 (중복 없음)
+        # selected_refs = random.sample(ref_chars, 3)
+        selected_refs = select_references(ch, ref_chars, T, top_k=3)
+        
+        # HEX 코드로 변환
+        cr_mapping[hex(ord(ch))[2:].upper()] = [hex(ord(r))[2:].upper() for r in selected_refs]
+
+    # --------------------------
+    # 4️⃣ JSON 저장
+    print()
+    with open("./build_dataset/cr_mapping.json", "w", encoding="utf-8") as f:
+        json.dump(cr_mapping, f, ensure_ascii=False, indent=2)
+
+    print("C-R mapping 생성 완료!")

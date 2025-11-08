@@ -45,18 +45,7 @@ def draw_example(ch, src_font, canvas_size):
     example_img.paste(src_img, (0, 0))
     return example_img
 
-data_dir = args.ttf_path
-data_root = pathlib.Path(data_dir)
-print(data_root)
 
-all_image_paths = list(data_root.glob('*.*'))  # *.ttf TTF
-all_image_paths = [str(path) for path in all_image_paths]
-total_num = len(all_image_paths)
-print(total_num)
-
-seq = list()
-
-os.makedirs(args.save_path, exist_ok=True)
 
 def get_char_list_from_ttf(font_file):
     f_obj = TTFont(font_file)
@@ -75,39 +64,6 @@ def font_has_char(ttf_path, ch):
     cmap = font["cmap"].getBestCmap()
     return ord(ch) in cmap
 
-    
-for idx, (label, item) in enumerate(zip(range(len(all_image_paths)),all_image_paths)):
-    print("{} / {} ".format(idx, total_num), item)
-    
-    src_font = ImageFont.truetype(item, size=args.chara_size)
-    font_name = item.split('/')[-1].split('.')[0]
-    if "UhBee" in font_name:
-        font_name = "_".join(font_name.split(' '))
-        
-    chars = get_char_list_from_ttf(item)  #
-
-    img_cnt = 0
-    filter_cnt = 0
-    for (chara, cnt) in zip(characters, range(len(characters))):
-        print(f"\r {chara}", end="")
-        
-        if not font_has_char(item, ch=chara): continue
-        
-        img = draw_example(chara, src_font, args.img_size)
-        # path_full = osp.join(args.save_path,'id_%d'%(label))
-        path_full = osp.join(args.save_path, font_name)
-        os.makedirs(path_full, exist_ok=True)
-    
-        if args.img_size * args.img_size * 3 - np.sum(np.array(img) / 255.) < 100:
-            filter_cnt += 1
-        else:
-            img_cnt += 1
-            # img.save(osp.join(path_full, "%05d.png" % (cnt)))
-            img.save(osp.join(path_full, f"{chara}.png"))
-            
-    print(filter_cnt,' characters are missing in this font')
-    
-
 
 def get_hangle_txt():
     start, end = 0xAC00, 0xD7A3
@@ -118,5 +74,44 @@ def get_hangle_txt():
 
     print(f"총 {end - start + 1}개의 글자를 저장했습니다.")
     
-# if __name__ == "__main__":
-#     get_hangle_txt()
+    
+if __name__ == "__main__":
+    data_root = pathlib.Path(args.ttf_path)
+
+    all_image_paths = list(data_root.glob('*.*'))  # *.ttf TTF
+    all_image_paths = [str(path) for path in all_image_paths]
+    total_num = len(all_image_paths)
+
+    os.makedirs(args.save_path, exist_ok=True)
+        
+    seq = list()
+    for idx, (label, item) in enumerate(zip(range(len(all_image_paths)),all_image_paths)):
+        print("{} / {} ".format(idx, total_num), item)
+        
+        src_font = ImageFont.truetype(item, size=args.chara_size)
+        font_name = item.split('/')[-1].split('.')[0]
+        if "UhBee" in font_name:
+            font_name = "_".join(font_name.split(' '))
+            
+        # chars = get_char_list_from_ttf(item)
+
+        img_cnt = 0
+        filter_cnt = 0
+        for (chara, cnt) in zip(characters, range(len(characters))):
+            print(f"\r {chara}", end="")
+            
+            if not font_has_char(item, ch=chara): continue
+            
+            img = draw_example(chara, src_font, args.img_size)
+            # path_full = osp.join(args.save_path,'id_%d'%(label))
+            path_full = osp.join(args.save_path, font_name)
+            os.makedirs(path_full, exist_ok=True)
+        
+            if args.img_size * args.img_size * 3 - np.sum(np.array(img) / 255.) < 100:
+                filter_cnt += 1
+            else:
+                img_cnt += 1
+                # img.save(osp.join(path_full, "%05d.png" % (cnt)))
+                img.save(osp.join(path_full, f"{chara}.png"))
+                
+        print(filter_cnt,' characters are missing in this font')
