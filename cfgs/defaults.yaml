@@ -9,7 +9,7 @@ n_workers: 0
 adam_betas: [0.0, 0.9]
 init: kaiming
 
-content_font: "UhBee_ann"
+content_font: "NanumBarunpenR"
 language: "kor"
 
 data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb
