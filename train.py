@@ -12,7 +12,7 @@ from transform import setup_transforms
 from models import generator_dispatch, disc_builder
 from datasets import (load_lmdb, load_json, read_data_from_lmdb,
                       get_comb_trn_loader, get_cv_comb_loaders)
-from trainer import load_checkpoint, CombinedTrainer
+from trainer import load_checkpoint_torch, CombinedTrainer
 from evaluator import Evaluator
 from models.modules import weights_init
 import torch.distributed as dist
@@ -48,7 +48,7 @@ def setup_args_and_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="CustomHandwrite")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom.yaml"])
-    parser.add_argument("--resume", default=False)
+    parser.add_argument("--resume", default="/home/dev/VQ-Font/logs/2025-11-02T10-46-17_custom_vqgan/checkpoints/epoch=000108.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()
@@ -193,6 +193,7 @@ def train(args, cfg, ddp_gpu=-1):
 
     else:
         disc = None
+    
     g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
     gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
@@ -202,9 +203,11 @@ def train(args, cfg, ddp_gpu=-1):
 
     st_step = 1
     if args.resume:
-        st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
-        logger.info("Resumed checkpoint from {} (Step {}, Loss {:7.3f})".format(
-            args.resume, st_step - 1, loss))
+        # st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
+        st_step, loss = load_checkpoint_torch(args.resume, gen, disc)
+        loss = f"{loss:7.3f}" if loss is not None else "N/A"
+        logger.info(f"Resumed checkpoint from {args.resume} (Step {st_step-1}, Loss {loss})" )
+        
         if cfg.overwrite:
             st_step = 1
         else:

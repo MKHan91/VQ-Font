@@ -2,7 +2,7 @@ use_half: False
 use_ddp: False
 port: 7890
 
-work_dir: ./results/baseline2/
+work_dir: ./results/baseline3/
 data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb/  # path/to/saved/lmdb
 data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json  # meta/train.json
 content_reference_json: /home/dev/VQ-Font/build_dataset/cr_mapping.json
