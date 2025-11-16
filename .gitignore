@@ -9,5 +9,6 @@ datasets/__pycache__
 logs/
 *.pyc
 *.tar.gz
-results
+vq_font_results
+
 __pycache__

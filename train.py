@@ -50,7 +50,7 @@ def setup_args_and_config():
     setup_args_and_configs
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default="CustomHandwrite")
+    parser.add_argument("--name", default="vq_font_v1.2")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom.yaml"])
     parser.add_argument("--resume", default="/home/dev/VQ-Font/logs/2025-11-02T10-46-17_custom_vqgan/checkpoints/epoch=000108.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
@@ -75,33 +75,37 @@ def setup_args_and_config():
 
     cfg.unique_name = unique_name
     cfg.name = args.name
-
-    (cfg.work_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (cfg.work_dir / "checkpoints" / unique_name).mkdir(parents=True, exist_ok=True)
+    
+    ckptdir = cfg.work_dir / "checkpoints" / cfg.name
+    codesdir = cfg.work_dir / "codes" / cfg.name
+    logdir = cfg.work_dir / "logs" / cfg.name
+    runsdir = cfg.work_dir / "runs" / cfg.name
+    
+    ckptdir.mkdir(parents=True, exist_ok=True)
+    codesdir.mkdir(parents=True, exist_ok=True)
+    logdir.mkdir(parents=True, exist_ok=True)
+    runsdir.mkdir(parents=True, exist_ok=True)
 
     if cfg.save_freq % cfg.val_freq:
         raise ValueError("save_freq has to be multiple of val_freq.")
     
-    os.makedirs(cfg['work_dir'] / "codes", exist_ok=True)
-    
     items = os.listdir(os.getcwd())
-    
     for item in items:
-        if item == "results": continue
+        if item == "vq_font_results": continue
             
         src = osp.join(os.getcwd(), item)
         if item == 'datasets':
-            os.makedirs(cfg['work_dir'] / "codes" / item, exist_ok=True)
-            shutil.copy2(osp.join(src, "__init__.py"), cfg['work_dir']/"codes"/item)
-            shutil.copy2(osp.join(src, "dataset_transformer.py"), cfg['work_dir']/"codes"/item)
-            shutil.copy2(osp.join(src, "datautils.py"), cfg['work_dir']/"codes"/item)
-            shutil.copy2(osp.join(src, "lmdbutils.py"), cfg['work_dir']/"codes"/item)
+            os.makedirs(codesdir / item, exist_ok=True)
+            shutil.copy2(osp.join(src, "__init__.py"), codesdir/item)
+            shutil.copy2(osp.join(src, "dataset_transformer.py"), codesdir/item)
+            shutil.copy2(osp.join(src, "datautils.py"), codesdir/item)
+            shutil.copy2(osp.join(src, "lmdbutils.py"), codesdir/item)
             continue
         
         if osp.isdir(src):
-            shutil.copytree(src, cfg['work_dir'] / "codes" / item, dirs_exist_ok=True)
+            shutil.copytree(src, codesdir / item, dirs_exist_ok=True)
         else:
-            shutil.copy2(src, cfg['work_dir'] / "codes")
+            shutil.copy2(src, codesdir)
     
     return args, cfg
 

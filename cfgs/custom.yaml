@@ -2,7 +2,7 @@ use_half: False
 use_ddp: False
 port: 7890
 
-work_dir: ./results/vq_font_v1.2/
+work_dir: ./vq_font_results
 data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb/  # path/to/saved/lmdb
 data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json  # meta/train.json
 content_reference_json: /home/dev/VQ-Font/build_dataset/cr_mapping.json
@@ -31,6 +31,6 @@ print_freq: 1
 # val_freq: 10000
 # save_freq: 10000
 # tb_freq: 10000
-val_freq: 109
-save_freq: 109
-tb_freq: 109
+val_freq: 1000
+save_freq: 1000
+tb_freq: 1000
