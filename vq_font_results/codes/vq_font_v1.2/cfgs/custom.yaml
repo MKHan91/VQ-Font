@@ -1,0 +1,36 @@
+use_half: False
+use_ddp: False
+port: 7890
+
+work_dir: ./vq_font_results
+data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb/  # path/to/saved/lmdb
+data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json  # meta/train.json
+content_reference_json: /home/dev/VQ-Font/build_dataset/cr_mapping.json
+# content_font: "UhBee_ann"
+
+input_size: 128
+num_heads: 8
+kshot: 3
+
+batch_size: 32
+n_workers: 0
+iter: 1500001
+g_lr: 2e-4
+d_lr: 8e-4
+
+# step_size: 10000
+step_size: 1000
+gamma: 0.95 
+overwrite: False
+adam_betas: [0.0, 0.9]
+
+cv_n_unis: 30 # 30
+cv_n_fonts: 10 # 10
+
+print_freq: 1
+# val_freq: 10000
+# save_freq: 10000
+# tb_freq: 10000
+val_freq: 1000
+save_freq: 1000
+tb_freq: 1000
