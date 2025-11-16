@@ -12,14 +12,15 @@ class CombinedTrainer(BaseTrainer):
     CombinedTrainer
     """
     def __init__(self, ddp_gpu,gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
-                 logger, evaluator, cv_loaders, cfg): # cls_char
+                 logger, evaluator, cv_loaders, cfg, writer): # cls_char
         super().__init__(ddp_gpu,gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
-                         logger, evaluator, cv_loaders, cfg)
+                         logger, evaluator, cv_loaders, cfg, writer)
 
+    # region - train
     def train(self, loader, st_step=1, max_step=100000):
-        """
-        train
-        """
+        self.max_step = max_step
+        self.num_epoch = int(max_step // len(loader))
+        
         self.gen.train()
         if self.disc is not None:
             self.disc.train()
@@ -45,7 +46,7 @@ class CombinedTrainer(BaseTrainer):
             for (in_style_ids, in_imgs,in_imgs_ske,
                  trg_style_ids, trg_uni_ids, trg_imgs, content_imgs, content_imgs_ske,trg_unis, style_sample_index, trg_sample_index) in loader:
                 
-                epoch = self.step // len(loader)
+                self.epoch = self.step // len(loader)
                 B = trg_imgs.shape[0]
                 stats.updates({
                     "B_style": in_imgs.shape[0],#batch*k_shot
@@ -105,7 +106,7 @@ class CombinedTrainer(BaseTrainer):
                 sc_feats = self.gen.encode_write_comb(in_style_ids, style_sample_index, in_imgs,in_imgs_crose,in_imgs_fine,in_stru_ids)
                 out, z_e_x,_,z_q_x ,indice_out= self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,in_stru_ids) #fake_img
                 self_infer_imgs, z_e_x_self ,_,z_q_x_self,indice_self= self.gen.infer(trg_style_ids, trg_imgs,trg_imgs_crose,trg_imgs_fine, trg_style_ids, trg_sample_index, trg_sample_index, content_imgs,trg_stru_ids,trg_stru_ids)
-                   
+                
                 ################### discriminator ##################
                 real_font, real_uni, real_stru= self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 fake_font, fake_uni,fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
@@ -142,11 +143,16 @@ class CombinedTrainer(BaseTrainer):
                 if self.step % self.cfg['val_freq'] == 0:
                     if is_main_worker(self.ddp_gpu):
                         epoch = self.step / len(loader)
-                        self.logger.info("Validation at Epoch = {:.3f}".format(epoch))
+                        self.logger.info(f"Validation at Epoch = {epoch:.3f}")
                         self.evaluator.cp_validation(self.gen_ema, self.cv_loaders, self.step)
-                if self.step >= 250000 and self.step % self.cfg['val_freq']==0:     
+                        
+                        self.writer.add_scalars({"learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.step)
+                        self.writer.add_scalars({"learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
+                        
+                # if self.step >= 250000 and self.step % self.cfg['val_freq']==0:     
+                if self.step >= 25000 and self.step % self.cfg['val_freq']==0:     
                     self.save(loss_dic['g_total'], self.cfg['save'], self.cfg.get('save_freq', self.cfg['val_freq']))
-
+                    
                 if self.step >= max_step:
                     break
 
@@ -157,8 +163,11 @@ class CombinedTrainer(BaseTrainer):
             
         self.logger.info("Iteration finished.")
 
+    
+    # region - log
     def log(self, losses, discs, stats):
         self.logger.info(
-            "  Step {step:7d}: Cross {L.cross.avg:7.4f} L1 {L.l1.avg:7.4f} Lpips {L.lpips.avg:7.4f} Feat {L.feat.avg:7.4f} D {L.disc.avg:7.3f}  G {L.gen.avg:7.3f}"
-            "  B_stl {S.B_style.avg:5.1f}  B_trg {S.B_target.avg:5.1f}"
-            .format(step=self.step, L=losses, D=discs, S=stats))
+            f" Epoch: [{self.epoch:4d}/{self.num_epoch}]  Step: {self.step:7d} "
+            f" | Cross: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f},  Feat: {losses.feat.avg:7.4f},  D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
+            f" | B_stl: {stats.B_style.avg:5.1f},  B_trg: {stats.B_target.avg:5.1f}"
+            )

@@ -20,7 +20,7 @@ class BaseTrainer:
     BaseTrainer
     """
     def __init__(self,ddp_gpu, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
-                 logger, evaluator, cv_loaders, cfg):
+                 logger, evaluator, cv_loaders, cfg, writer):
 
         self.ddp_gpu = ddp_gpu
         self.gen = gen
@@ -32,6 +32,7 @@ class BaseTrainer:
         self.d_scheduler = d_scheduler
         self.cfg = cfg
         self.perceptual_loss = LPIPS().eval().cuda()
+        self.writer = writer
         
 
         [self.gen, self.gen_ema, self.disc], [self.g_optim, self.d_optim] = self.set_model(

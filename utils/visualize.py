@@ -19,7 +19,7 @@ def make_comparable_grid(*batches, nrow):
         grid = to_grid(row, 'torch', nrow=nrow)
         grids.append(grid)
 
-        C, _H, W = grid.shape
+        C, _, W = grid.shape
         sep_bar = torch.zeros(C, 10, W)
         grids.append(sep_bar)
     return torch.cat(grids[:-1], dim=1)

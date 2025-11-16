@@ -106,40 +106,58 @@ class Evaluator:
             )
 
     @paddle_eval
-    def comparable_val_saveimg(
-        self, gen, loader, step, kshot=3, tag="comparable", reduction="mean"
-    ):
+    def comparable_val_saveimg(self, 
+                               gen, 
+                               loader, 
+                               step, 
+                               kshot=3, 
+                               tag="comparable", 
+                               reduction="mean"):
+        
         n_row = loader.dataset.n_uni_per_font * kshot
-        compare_batches ,metrics= self.infer_loader(gen, loader, kshot, reduction=reduction)
+        compare_batches, metrics= self.infer_loader(gen, loader, kshot, reduction=reduction)
 
         comparable_grid = utils.make_comparable_grid(*compare_batches[::-1], nrow=n_row)
-        # self.writer.add_image(metrics,tag, comparable_grid, step)
+
         self.writer.add_scalars(metrics, step)
         self.writer.add_image(tag, comparable_grid, step)
         
         return comparable_grid
-
+    
+    
+    # region - infer_loader
     @paddle_eval
     def infer_loader(self, gen, loader, kshot, reduction="mean"):
         outs = []
         trgs = []
         styles = []
 
-        for (
-            i,
-            (
-                in_style_ids,
-                in_imgs,
-                in_imgs_ske,
-                trg_style_ids,
-                trg_unis,
-                style_sample_index,
-                trg_sample_index,
-                content_imgs,
-                content_imgs_ske,
-                *trg_imgs,
-            ),
-        ) in enumerate(loader):
+        # for (i, (
+        #         in_style_ids,
+        #         in_imgs,
+        #         in_imgs_ske,
+        #         trg_style_ids,
+        #         trg_unis,
+        #         style_sample_index,
+        #         trg_sample_index,
+        #         content_imgs,
+        #         content_imgs_ske,
+        #         *trg_imgs,
+        #     ),
+        # ) in enumerate(loader):
+        for i, loader_list in enumerate(loader):
+            
+            in_style_ids        = loader_list[0]
+            in_imgs             = loader_list[1]
+            in_imgs_ske         = loader_list[2]
+            trg_style_ids       = loader_list[3]
+            trg_unis            = loader_list[4]
+            style_sample_index  = loader_list[5]
+            trg_sample_index    = loader_list[6]
+            content_imgs        = loader_list[7]
+            content_imgs_ske    = loader_list[8]
+            trg_imgs            = loader_list[9]
+            
             if self.use_half:
                 in_imgs = in_imgs.half()
                 content_imgs = content_imgs.half()
@@ -200,14 +218,14 @@ class Evaluator:
                 style_duplicate = np.ones((1, 1, self.size, self.size))
                 style_duplicate[:, :, :, :] = style_img.unsqueeze(1).detach().cpu()
                 styles.append(torch.Tensor(style_duplicate))
-
-            if trg_imgs:
-                trg_images = trg_imgs[0].detach().cpu().numpy()
-                trg_duplicate = np.zeros((batch_size * kshot, 1, self.size, self.size))
-                for idx in range(batch_size):
-                    for j in range(kshot):
-                        trg_duplicate[idx * kshot + j, ...] = trg_images[idx, ...]
-                trgs.append(torch.Tensor(trg_duplicate))
+            
+            # if trg_imgs:
+            #     trg_images = trg_imgs[0].detach().cpu().numpy()
+            #     trg_duplicate = np.zeros((batch_size * kshot, 1, self.size, self.size))
+            #     for idx in range(batch_size):
+            #         for j in range(kshot):
+            #             trg_duplicate[idx * kshot + j, ...] = trg_images[idx, ...]
+            #     trgs.append(torch.Tensor(trg_duplicate))
 
         ret = (torch.cat(outs).float(),)
         if trgs:
@@ -221,7 +239,9 @@ class Evaluator:
         ssim = batch_ssim(ret[1],ret[0])
         lpips_alex = self.loss_fn_alex(ret[1].detach().cpu(),ret[0].detach().cpu()).mean().item()
         lpips_vgg = self.loss_fn_vgg(ret[1].detach().cpu(),ret[0].detach().cpu()).mean().item()
-        print('l1:','%.3f'%l1,'Rmse:','%.3f'%Rmse,'psnr:','%.3f'%psnr,'ssim:','%.3f'%ssim,'lpips_alex:','%.3f'%lpips_alex,'lpips_vgg:','%.3f'%lpips_vgg)
+        
+        print(f'L1:{l1:.3f}, RMSE: {Rmse:.3f}, PSNR: {psnr:.3f}, ssim: {ssim:.3f}, lpips_alex: {lpips_alex:.3f}, lpips_vgg: {lpips_vgg:.3f}')
+        
         a = {}
         a['Rmse']=Rmse
         a['psnr']=psnr
@@ -239,6 +259,8 @@ class Evaluator:
         tensor = (tensor - minv) / (maxv - minv + eps)
         return tensor
 
+    
+    # region - save each images
     @paddle_eval
     def save_each_imgs(self, gen, loader, ori_img_root, save_dir, reduction="mean"):
         """

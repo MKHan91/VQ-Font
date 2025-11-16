@@ -1,4 +1,7 @@
 import sys
+import os
+import os.path as osp
+import shutil
 import cv2
 from pathlib import Path
 import argparse
@@ -41,6 +44,7 @@ def train_ddp(gpu, args, cfg, world_size):
     train(args, cfg, ddp_gpu=gpu)
     cleanup()
 
+# region - config
 def setup_args_and_config():
     """
     setup_args_and_configs
@@ -77,14 +81,33 @@ def setup_args_and_config():
 
     if cfg.save_freq % cfg.val_freq:
         raise ValueError("save_freq has to be multiple of val_freq.")
-
+    
+    os.makedirs(cfg['work_dir'] / "codes", exist_ok=True)
+    
+    items = os.listdir(os.getcwd())
+    
+    for item in items:
+        if item == "results": continue
+            
+        src = osp.join(os.getcwd(), item)
+        if item == 'datasets':
+            os.makedirs(cfg['work_dir'] / "codes" / item, exist_ok=True)
+            shutil.copy2(osp.join(src, "__init__.py"), cfg['work_dir']/"codes"/item)
+            shutil.copy2(osp.join(src, "dataset_transformer.py"), cfg['work_dir']/"codes"/item)
+            shutil.copy2(osp.join(src, "datautils.py"), cfg['work_dir']/"codes"/item)
+            shutil.copy2(osp.join(src, "lmdbutils.py"), cfg['work_dir']/"codes"/item)
+            continue
+        
+        if osp.isdir(src):
+            shutil.copytree(src, cfg['work_dir'] / "codes" / item, dirs_exist_ok=True)
+        else:
+            shutil.copy2(src, cfg['work_dir'] / "codes")
+    
     return args, cfg
 
 
+# region - train
 def train(args, cfg, ddp_gpu=-1):
-    """
-    train
-    """
     # cfg.gpu = ddp_gpu
     cfg.gpu = 0
     torch.cuda.set_device(cfg.gpu)
@@ -95,7 +118,7 @@ def train(args, cfg, ddp_gpu=-1):
 
     image_scale = 0.6
     writer_path = cfg.work_dir / "runs" / cfg.unique_name
-    eval_image_path = cfg.work_dir / "images" / cfg.unique_name
+    # eval_image_path = cfg.work_dir / "images" / cfg.unique_name
     
     # writer = utils.TBDiskWriter(writer_path, eval_image_path, scale=image_scale)
     writer = utils.TBWriter(writer_path, scale=image_scale)
@@ -103,9 +126,9 @@ def train(args, cfg, ddp_gpu=-1):
     args_str = dump_args(args)
     #if is_main_worker(ddp_gpu):
     logger.info("Run Argv:\n> {}".format(" ".join(sys.argv)))
-    logger.info("Args:\n{}".format(args_str))
-    logger.info("Configs:\n{}".format(cfg.dumps()))
-    logger.info("Unique name: {}".format(cfg.unique_name))
+    logger.info(f"Args:\n{args_str}")
+    logger.info(f"Configs:\n{cfg.dumps()}")
+    logger.info(f"Unique name: {cfg.unique_name}")
     logger.info("Get dataset ...")
 
     # content_font = cfg.content_font
@@ -189,17 +212,15 @@ def train(args, cfg, ddp_gpu=-1):
         #     if k.startswith('loss.discriminator') :
         #         dt[k[19:]]=v
         # disc.load_state_dict(dt)
-
-
     else:
         disc = None
     
     g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
-    gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
-    dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
-
-
+    # gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
+    # dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
+    gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=2, eta_min=1e-6)
+    dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=2, eta_min=1e-6)
 
     st_step = 1
     if args.resume:
@@ -223,9 +244,9 @@ def train(args, cfg, ddp_gpu=-1):
                         #   content_font,
                           use_half=cfg.use_half
                           )
-
+    
     trainer = Trainer(ddp_gpu,gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler,
-                      logger, evaluator, cv_loaders, cfg)
+                      logger, evaluator, cv_loaders, cfg, writer)
     trainer.train(trn_loader, st_step, cfg["iter"])
 
 

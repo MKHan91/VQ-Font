@@ -185,7 +185,6 @@ class CombTestDataset(Dataset):
         self.to_int = to_int_dict[language.lower()]
         
     def sample_pair_style(self, trg_uni, avail_unis):
-            
         if trg_uni not in self.cr_mapping:
             style_unis = random.sample(avail_unis, 3)
         else:
@@ -208,27 +207,23 @@ class CombTestDataset(Dataset):
         style_unis = self.sample_pair_style(trg_uni, avail_unis)
         
         try:
-            
             imgs_ske = [np.asarray(read_data_from_lmdb(self.env,f'{font_name}_{uni}')['img']) for uni in style_unis]
             for i in range(len(imgs_ske)):
                 _,binary = cv2.threshold(imgs_ske[i],127,255,cv2.THRESH_BINARY_INV)
                 binary[binary==255] = 1
                 skeleton0 = morphology.skeletonize(binary)
                 imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
-                # cv2.imwrite("skeleton1.png",imgs_ske[i])
+                
             b = [self.transform(Image.fromarray(img)) for img in imgs_ske]
-            
-            
-            # print(style_imgs_ske.shape,'style_imgs_ske')
-            # aaa
-            a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
+            # a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
+            a = [self.env_get(self.env, "reference_images", uni, self.transform) for uni in style_unis]
             
         except:
             print (font_name, style_unis)
 
         style_imgs = torch.stack(a)
-        style_imgs_ske =  torch.stack(b)            
-        # print(a[0].shape,b[0].shape,style_imgs.shape,style_imgs_ske.shape)
+        # st = style_imgs[0][0].cpu().numpy()
+        style_imgs_ske =  torch.stack(b)
         
         font_idx = torch.tensor([font_idx])
         trg_dec_uni = torch.tensor([self.to_int(trg_uni)])
