@@ -30,7 +30,7 @@ class CombinedTrainer(BaseTrainer):
         # discriminator stats
         discs = utils.AverageMeters("real_font", "real_uni", "fake_font", "fake_uni")
         # etc stats
-        stats = utils.AverageMeters("B_style", "B_target")
+        stats = utils.AverageMeters("batch_style", "batch_target")
         self.step = st_step
         self.clear_losses()
         self.logger.info("Start training ...")
@@ -41,71 +41,95 @@ class CombinedTrainer(BaseTrainer):
             cr_map = json.load(f,strict=False)
         with open('/home/dev/VQ-Font/build_dataset/de.json','r') as f:
             de = json.load(f,strict=False)
-            
+        
+        # region 학습 시작
         while True:
-            for (in_style_ids, in_imgs,in_imgs_ske,
-                 trg_style_ids, trg_uni_ids, trg_imgs, content_imgs, content_imgs_ske,trg_unis, style_sample_index, trg_sample_index) in loader:
+            for (input_style_ids, input_imgs, input_imgs_ske,
+                 trg_style_ids, trg_uni_ids, trg_imgs, 
+                 content_imgs, content_imgs_ske, 
+                 trg_unis, style_sample_index, trg_sample_index) in loader:
                 
                 self.epoch = self.step // len(loader)
-                B = trg_imgs.shape[0]
+                batch_size = trg_imgs.shape[0]
                 stats.updates({
-                    "B_style": in_imgs.shape[0],#batch*k_shot
-                    "B_target": B#batch
+                    "batch_style": input_imgs.shape[0], # batch*k_shot
+                    "batch_target": batch_size
                 })
                 
-                in_style_ids = in_style_ids.cuda()
-                in_imgs = in_imgs.cuda()        
+                input_style_ids = input_style_ids.cuda()
+                input_imgs = input_imgs.cuda()        
                 trg_uni_disc_ids = trg_uni_ids.cuda()
                 trg_style_ids = trg_style_ids.cuda()
                 trg_imgs = trg_imgs.cuda()
                 content_imgs = content_imgs.cuda()
                 
-                #获取in_styles_unis
-                in_styles_unis = []
+                # input_styles_unis를 가져오기
+                input_styles_unis = []
                 for i in trg_unis:
-                    in_styles_unis.append(cr_map[i[0]])
+                    input_styles_unis.append(cr_map[i[0]])
 
-                #获取结构信息
+                # 타깃 시퀀스에서 각 단위의 구조 정보를 가져와 GPU용 텐서로 변환
                 trg_stru_ids = []
                 for i in trg_unis:
                     trg_stru_ids.append(stru_map[i[0]])
                 trg_stru_ids = torch.tensor(trg_stru_ids).cuda()
                 
                 in_stru_ids=[]
-                for k in in_styles_unis:
+                for k in input_styles_unis:
                     for i in range(3):
                         in_stru_ids.append(stru_map[k[i]])
                 in_stru_ids = torch.tensor(in_stru_ids).cuda()
 
-                #获取部件信息
+                # 타깃 단위와 입력 스타일 단위에서 컴포넌트 정보를 뽑아 리스트로 만드는 과정
                 trg_comp_ids = []
                 for i in trg_unis:
                     trg_comp_ids.append(de[i[0]])
                 in_comp_ids=[]
-                for k in in_styles_unis:
+                for k in input_styles_unis:
                     for i in range(3):
                         in_comp_ids.append(de[k[i]])
                 
                 if self.cfg.use_half:
-                    in_imgs = in_imgs.half()
+                    input_imgs = input_imgs.half()
                     content_imgs = content_imgs.half()
 
-                in_imgs_crose = torch.nn.functional.interpolate(in_imgs,scale_factor=1.2,mode='bilinear')
-                in_imgs_crose = in_imgs_crose.cuda()
-                in_imgs_fine = torch.nn.functional.interpolate(in_imgs,scale_factor=0.8,mode='bilinear')
-                in_imgs_fine = in_imgs_fine.cuda()          
+                input_imgs_crose = torch.nn.functional.interpolate(input_imgs,scale_factor=1.2,mode='bilinear')
+                input_imgs_crose = input_imgs_crose.cuda()
+                input_imgs_fine = torch.nn.functional.interpolate(input_imgs,scale_factor=0.8,mode='bilinear')
+                input_imgs_fine = input_imgs_fine.cuda()          
                 trg_imgs_crose = torch.nn.functional.interpolate(trg_imgs,scale_factor=1.2,mode='bilinear')
                 trg_imgs_fine = torch.nn.functional.interpolate(trg_imgs,scale_factor=0.8,mode='bilinear')
+                
+                """
+                Conditional VQGAN
+                
+                Real font → Reference style → Content font → Target font 생성
+                # Real font: real(진짜) 이미지 trg_imgs가 어떤 font 스타일인지 D가 예측한 결과
+                # Reference style: G가 이미지를 생성할 때 참고하는 “스타일 이미지”
+                """
                 
                 ##############################################################
                 # infer
                 ##############################################################
                 # quant, emb_loss, info ,gt_feat= self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
-                quant, emb_loss, info = self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
-                tar = self.gen.vqgan.decode(quant)
-                sc_feats = self.gen.encode_write_comb(in_style_ids, style_sample_index, in_imgs,in_imgs_crose,in_imgs_fine,in_stru_ids)
-                out, z_e_x,_,z_q_x ,indice_out= self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,in_stru_ids) #fake_img
-                self_infer_imgs, z_e_x_self ,_,z_q_x_self,indice_self= self.gen.infer(trg_style_ids, trg_imgs,trg_imgs_crose,trg_imgs_fine, trg_style_ids, trg_sample_index, trg_sample_index, content_imgs,trg_stru_ids,trg_stru_ids)
+                # quant, emb_loss, info = self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
+                # tar = self.gen.vqgan.decode(quant)
+                # sc_feats = self.gen.encode_write_comb(input_style_ids, style_sample_index, input_imgs, input_imgs_crose,input_imgs_fine,in_stru_ids)
+                # out, z_e_x,_,z_q_x ,indice_out= self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs, trg_stru_ids, in_stru_ids) #fake_img
+                # self_infer_imgs, z_e_x_self ,_,z_q_x_self, indice_self= self.gen.infer(trg_style_ids, trg_imgs, trg_imgs_crose, trg_imgs_fine, trg_style_ids, trg_sample_index, trg_sample_index, content_imgs,trg_stru_ids,trg_stru_ids)
+                
+                quant, _, info = self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
+                _ = self.gen.vqgan.decode(quant)
+                # 여기서 style embedding 추출
+                _ = self.gen.encode_write_comb(input_style_ids, style_sample_index, input_imgs, input_imgs_crose,input_imgs_fine,in_stru_ids)
+                # style이 적용된 content 이미지로서 fake 이미지로 쓰임.
+                out, _, _, _ , indice_out = self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs, trg_stru_ids, in_stru_ids)
+                # self-reconstruction
+                _, _ ,_, _, indice_self = self.gen.infer(trg_style_ids, trg_imgs, trg_imgs_crose, trg_imgs_fine, 
+                                                         trg_style_ids, trg_sample_index, trg_sample_index, 
+                                                         content_imgs,
+                                                         trg_stru_ids,
+                                                         trg_stru_ids)
                 
                 ################### discriminator ##################
                 real_font, real_uni, real_stru= self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
@@ -127,7 +151,7 @@ class CombinedTrainer(BaseTrainer):
                 self.g_optim.step()
                 self.g_scheduler.step()
                 loss_dic = self.clear_losses()
-                losses.updates(loss_dic, B)  # accum loss stats
+                losses.updates(loss_dic, batch_size)  # accum loss stats
 
                 # EMA g
                 self.accum_g()
@@ -162,12 +186,12 @@ class CombinedTrainer(BaseTrainer):
                 break
             
         self.logger.info("Iteration finished.")
+        # region 학습 끝
 
-    
-    # region - log
+
     def log(self, losses, discs, stats):
         self.logger.info(
             f" Epoch: [{self.epoch:4d}/{self.num_epoch}]  Step: {self.step:7d} "
-            f" | Cross: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f},  Feat: {losses.feat.avg:7.4f},  D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
-            f" | B_stl: {stats.B_style.avg:5.1f},  B_trg: {stats.B_target.avg:5.1f}"
+            f" | cross_entropy: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f},  Feat: {losses.feat.avg:7.4f},  D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
+            f" | batch_style: {stats.batch_style.avg:5.1f},  batch_target: {stats.batch_target.avg:5.1f}"
             )

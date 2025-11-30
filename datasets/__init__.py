@@ -22,8 +22,7 @@ def get_comb_trn_loader(env, env_get, cfg, train_dict, transform, **kwargs):
         env_get,
         train_dict,
         content_reference_json = cfg.content_reference_json, 
-        content_font=cfg.content_font,
-        **cfg.get('dset_args', {}),
+        content_font=cfg.content_font, **cfg.get('dset_args', {}),
         transform=transform
     )
     
@@ -98,13 +97,13 @@ def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
     n_unis = cfg.cv_n_unis
     n_fonts = cfg.cv_n_fonts
 
-    #从字典中选择几
+    # dictionary에서 몇 개 선택하기
     ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
     sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
     sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
     uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis) #['6E6B']
     
-    sfsu_dict = {fname: sus for fname in sfs} # 添加sfsu
+    sfsu_dict = {fname: sus for fname in sfs}
     sfuu_dict = {fname: uus for fname in sfs}
     ufsu_dict = {fname: sus for fname in ufs}
     ufuu_dict = {fname: uus for fname in ufs}

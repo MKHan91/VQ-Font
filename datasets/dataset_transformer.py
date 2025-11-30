@@ -15,100 +15,105 @@ from skimage import morphology
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-# region - Train
+# region - Train용 
 class CombTrainDataset(Dataset):
     """
     CombTrainDataset
     """
-    def __init__(self, env, env_get, avails, content_reference_json, content_font, transform=None):
+    def __init__(self, env, env_get, train_font_dict, content_reference_json, content_font, 
+                 transform=None):
         self.env = env
         self.env_get = env_get
                 
         with open(content_reference_json, 'r') as f:
             self.cr_mapping = json.load(f)
         
-        self.avails = avails
-        #unis：content characters
-        self.unis = sorted(list(self.cr_mapping.keys()))
-        #font list without characters
-        self.fonts = list(self.avails)
-        self.n_unis = len(self.unis)
-        print ('number of unis: ', self.n_unis)
-        self.n_fonts = len(self.fonts)
-        print ('number of fonts: ', self.n_fonts)
+        self.train_font_dict = train_font_dict
+        self.content_chars = sorted(list(self.cr_mapping.keys()))
+        self.n_content_chars = len(self.content_chars)
+        self.train_font_names = list(self.train_font_dict)
+        self.n_fonts = len(self.train_font_names)
         self.transform = transform
-        self.content_font = content_font
+        self.content_font_name = content_font
         
-    #return font cr_mapping
-    def sample_pair_style(self, font, trg_unis, avail_unis):
+        print ('#'*30 + f' number of content_chars: {self.n_content_chars} ' + '#'*30)
+        print ('#'*30 + f' number of train fonts: {self.n_fonts} ' + '#'*30)
+        
+        
+    # region font cr_mapping
+    def sample_pair_style(self, font_name, trg_unis, avail_unis):
         trg_uni = trg_unis[0] 
         style_unis = self.cr_mapping[trg_uni]
 
         try:           
-            imgs_ske = [np.asarray(read_data_from_lmdb(self.env,f'{font}_{uni}')['img']) for uni in style_unis]
+            imgs_ske = [np.asarray(read_data_from_lmdb(self.env, f'{font_name}_{uni}')['img']) for uni in style_unis]
             for i in range(len(imgs_ske)):
-                # _,binary = cv2.threshold(imgs_ske[i],127,255,cv2.THRESH_BINARY_INV)
+                # _, sample = cv2.threshold(imgs_ske[i], 127, 255, cv2.THRESH_BINARY_INV)
                 _, binary = cv2.threshold(imgs_ske[i], 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-                binary[binary==255] = 1
+                binary[binary == 255] = 1
                 skeleton0 = morphology.skeletonize(binary)
-                imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
-                # cv2.imwrite("skeleton1.png",imgs_ske[i])
+                imgs_ske[i] = (255 - skeleton0.astype(np.uint8)*255)
                 
             imgs_ske = torch.cat([self.transform(Image.fromarray(img)) for img in imgs_ske])
-            imgs = torch.cat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis]) 
+            imgs = torch.cat([self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]) 
+            
+            # for img_ske, img in zip(imgs_ske, imgs):
+            #     ske = (img_ske.cpu().numpy() + 1) * 100
+            #     sample = (img.cpu().numpy() * 255).astype(np.uint8)
+            #     a=1
         except:
             return None, None
         # imgs = paddle.concat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis])
 
-        return imgs,imgs_ske ,list(style_unis)
+        # return imgs, imgs_ske, list(style_unis)
+        return imgs, imgs_ske, style_unis
         
     
     #random return a character both in train font and cr_mapping.keys()
-    def random_get_trg(self, avails, font_name):
-        target_list = list(set.intersection(set(avails[font_name]), set(self.unis)))
-        trg_uni = random.choice(target_list)
-        return [trg_uni]
+    def get_random_trg(self, train_unis):
+        target_list = list(set.intersection(set(train_unis), 
+                                            set(self.content_chars)))
+        intersec_train_uni = random.choice(target_list)
+        
+        return [intersec_train_uni]
     
     
             
     def __getitem__(self, index):
-        #randomly choose a font
         font_idx = index % self.n_fonts
-        font_name = self.fonts[font_idx]
-        while True:
-            #randomly choose target
-            trg_unis = self.random_get_trg(self.avails, font_name)
-            sample_index = torch.tensor([index])
-            
-            avail_unis = self.avails[font_name]
-            style_imgs, style_imgs_ske,style_unis = self.sample_pair_style(font_name, trg_unis, avail_unis)
-             
-            if style_imgs is None: continue
+        
+        # train_font_name = self.train_font_names[font_idx]
+        train_font_name = "reference_images"
+        train_unis = self.train_font_dict[train_font_name]
+        
+        sample_index = torch.tensor([index])
 
-            #add trg_imgs
-            trg_imgs = torch.cat([self.env_get(self.env, font_name, uni, self.transform)
-                                  for uni in trg_unis])
+        while True:
+            intersec_train_uni = self.get_random_trg(train_unis)
+            """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
+            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
+            if style_imgs is None: 
+                print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
+                continue
+
+            trg_imgs = torch.cat([self.env_get(self.env, train_font_name, uni, self.transform)
+                                  for uni in intersec_train_uni])
             
-            trg_uni_ids = [self.unis.index(uni) for uni in trg_unis]
+            trg_uni_ids = [self.content_chars.index(uni) for uni in intersec_train_uni]
             font_idx = torch.tensor([font_idx])
             
-            content_imgs = torch.cat([self.env_get(self.env, self.content_font, uni, self.transform)
-                                      for uni in trg_unis]).unsqueeze_(1)
+            content_imgs = torch.cat([self.env_get(self.env, self.content_font_name, uni, self.transform)
+                                      for uni in intersec_train_uni]).unsqueeze_(1)
            
-            content_imgs_ske = [np.asarray(read_data_from_lmdb(self.env,f'{self.content_font}_{uni}')['img']) for uni in trg_unis]
+            content_imgs_ske = [np.asarray(read_data_from_lmdb(self.env, f'{self.content_font_name}_{uni}')['img']) for uni in intersec_train_uni]
             for i in range(len(content_imgs_ske)):
                 _,binary = cv2.threshold(content_imgs_ske[i],127,255,cv2.THRESH_BINARY_INV)
                 binary[binary==255] = 1
                 skeleton0 = morphology.skeletonize(binary)
                 content_imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
-                # cv2.imwrite("content_imgs_ske.png",content_imgs_ske[i])
             
             content_imgs_ske = torch.cat([self.transform(Image.fromarray(img)) for img in content_imgs_ske])
-           
-            # print('sss',len(style_imgs)) 3
-            # print('f:',font_idx)
-            # print('s:',sample_index)
-            # print(trg_imgs.shape,content_imgs.shape)[1, 128, 128][1, 1, 128, 128]
 
             ret = (
                 torch.repeat_interleave(font_idx, len(style_imgs)),
@@ -119,15 +124,17 @@ class CombTrainDataset(Dataset):
                 trg_imgs,
                 content_imgs,
                 content_imgs_ske,
-                trg_unis,
-                torch.repeat_interleave(sample_index, len(style_imgs)), #style sample index
-                sample_index #trg sample index
+                intersec_train_uni,
+                torch.repeat_interleave(sample_index, len(style_imgs)),
+                sample_index 
             )
             
             return ret
 
+
     def __len__(self):
-        return sum([len(v) for v in self.avails.values()])
+        return sum([len(v) for v in self.train_font_dict.values()])
+
 
     @staticmethod
     def collate_fn(batch):
@@ -153,7 +160,7 @@ class CombTrainDataset(Dataset):
         return ret
 
 
-# region - Test
+# region - Test 용
 class CombTestDataset(Dataset):
     """
     CombTestDataset
@@ -175,7 +182,7 @@ class CombTestDataset(Dataset):
         self.train_unis = sorted(set.union(*map(set, self.cr_mapping.values())))
         self.transform = transform
         self.ret_targets = ret_targets
-        self.content_font = content_font
+        self.content_font_name = content_font
 
         to_int_dict = {"chn": lambda x: int(x, 16),
                        "kor": lambda x: int(x, 16),
@@ -228,9 +235,9 @@ class CombTestDataset(Dataset):
         font_idx = torch.tensor([font_idx])
         trg_dec_uni = torch.tensor([self.to_int(trg_uni)])
         
-        content_img = self.env_get(self.env, self.content_font, trg_uni, self.transform)
+        content_img = self.env_get(self.env, self.content_font_name, trg_uni, self.transform)
         
-        content_imgs_ske = np.asarray(read_data_from_lmdb(self.env,f'{self.content_font}_{trg_uni}')['img'])
+        content_imgs_ske = np.asarray(read_data_from_lmdb(self.env,f'{self.content_font_name}_{trg_uni}')['img'])
         _,binary = cv2.threshold(content_imgs_ske,127,255,cv2.THRESH_BINARY_INV)
         binary[binary==255] = 1
         skeleton0 = morphology.skeletonize(binary)
@@ -302,7 +309,7 @@ class FixedRefDataset(Dataset):
         with open(content_reference_json, 'r') as f:
             self.cr_mapping = json.load(f)
             
-        self.content_font = content_font
+        self.content_font_name = content_font
         self.fonts = list(target_dict)
 
         self.env = env
@@ -337,7 +344,7 @@ class FixedRefDataset(Dataset):
         trg_dec_uni =torch.tensor([self.to_int(trg_uni)])
         style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis])
         
-        content_img = self.env_get(self.env, self.content_font, trg_uni, self.transform)
+        content_img = self.env_get(self.env, self.content_font_name, trg_uni, self.transform)
         ret = (
             torch.repeat_interleave(fidces, len(style_imgs)), #fidces,
             style_imgs,
@@ -398,7 +405,7 @@ class FixedRefDataset_random(Dataset):
         with open(content_reference_json, 'r') as f:
             self.cr_mapping = json.load(f)
 
-        self.content_font = content_font
+        self.content_font_name = content_font
         self.fonts = list(target_dict)
 
         self.env = env
@@ -433,7 +440,7 @@ class FixedRefDataset_random(Dataset):
         trg_dec_uni = torch.tensor([self.to_int(trg_uni)])
         style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis])
 
-        content_img = self.env_get(self.env, self.content_font, trg_uni, self.transform)
+        content_img = self.env_get(self.env, self.content_font_name, trg_uni, self.transform)
         ret = (
             torch.repeat_interleave(fidces, len(style_imgs)),  # fidces,
             style_imgs,

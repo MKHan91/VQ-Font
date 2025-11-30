@@ -111,30 +111,40 @@ def setup_args_and_config():
 
 # region - train
 def train(args, cfg, ddp_gpu=-1):
+    # cfg.gpu = ddp_gpu
     cfg.gpu = 0
     torch.cuda.set_device(cfg.gpu)
     cudnn.benchmark = True
 
+    # logger_path = cfg.work_dir / "logs" / "{}.log".format(cfg.unique_name)
     log_path = args.logdir / f"{cfg.name}.log"
     logger = Logger.get(file_path=log_path, level="info", colorize=True)
 
     image_scale = 0.6
     writer_path = cfg.work_dir / "runs" / cfg.unique_name
+    # eval_image_path = cfg.work_dir / "images" / cfg.unique_name
     
+    # writer = utils.TBDiskWriter(writer_path, eval_image_path, scale=image_scale)
     writer = utils.TBWriter(writer_path, scale=image_scale)
 
     args_str = dump_args(args)
+    #if is_main_worker(ddp_gpu):
     logger.info("Run Argv:\n> {}".format(" ".join(sys.argv)))
     logger.info(f"Args:\n{args_str}")
     logger.info(f"Configs:\n{cfg.dumps()}")
     logger.info(f"Unique name: {cfg.unique_name}")
     logger.info("Get dataset ...")
 
+    # content_font = cfg.content_font
     trn_transform, val_transform = setup_transforms(cfg)
 
     env = load_lmdb(cfg.data_path)
     env_get = lambda env, x, y, transform: transform(read_data_from_lmdb(env, f'{x}_{y}')['img'])
     data_meta = load_json(cfg.data_meta)
+
+    # get_trn_loader = get_comb_trn_loader
+    # get_cv_loaders = get_cv_comb_loaders
+    # Trainer = CombinedTrainer
 
     trn_dset, trn_loader = get_comb_trn_loader(env, 
                                                env_get,
@@ -162,7 +172,11 @@ def train(args, cfg, ddp_gpu=-1):
 
 
     logger.info("Build model ...")
+    # generator
     g_kwargs = cfg.get("g_args", {})
+    # print('*'*20,g_kwargs) 
+    #def generator_dispatch():
+    # return Generator
 
     g_cls = generator_dispatch()
     gen = g_cls(1, cfg.C, 1, cfg, **g_kwargs)
@@ -182,7 +196,7 @@ def train(args, cfg, ddp_gpu=-1):
     
     if cfg.gan_w > 0.:
         d_kwargs = cfg.get("d_args", {})
-        disc = disc_builder(cfg.C, trn_dset.n_fonts, trn_dset.n_content_chars, **d_kwargs)
+        disc = disc_builder(cfg.C, trn_dset.n_fonts, trn_dset.n_unis, **d_kwargs)
         disc.cuda()
         disc.apply(weights_init(cfg.init))        
         

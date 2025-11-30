@@ -15,6 +15,7 @@ except ImportError:
 from taming.modules.losses.lpips import LPIPS
 from taming.modules.discriminator.model import NLayerDiscriminator, weights_init
 
+# region - BaseTrainer
 class BaseTrainer:
     """
     BaseTrainer
@@ -343,7 +344,7 @@ class BaseTrainer:
             
         return tag_scalar_dic
 
-
+    # region - log
     def log(self, losses, discs, stats):
         self.logger.info(
             "  Step {step:7d}: L1 {L.pixel.avg:7.4f}  D {L.disc.avg:7.3f}  G {L.gen.avg:7.3f}"

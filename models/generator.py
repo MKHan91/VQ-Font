@@ -1008,18 +1008,23 @@ class Generator(nn.Module):
             self.reset_memory()
         return out, fusion,attention_mask,z_q_x,indice_out
 
-    def infer(self, in_style_ids, in_imgs,in_imgs_crose,in_imgs_fine, trg_style_ids, style_sample_index, trg_sample_index, content_imgs, in_stru_ids,trg_stru_ids,
+    def infer(self, 
+              input_style_ids, input_imgs, input_imgs_crose, input_imgs_fine, 
+              trg_style_ids, style_sample_index, trg_sample_index, 
+              content_imgs, 
+              input_stru_ids,
+              trg_stru_ids,
               reduction="mean"):
         """
         infer
         """
-        in_style_ids = in_style_ids.cuda()
-        in_imgs = in_imgs.cuda()
+        input_style_ids = input_style_ids.cuda()
+        input_imgs = input_imgs.cuda()
         trg_style_ids = trg_style_ids.cuda()
         content_imgs = content_imgs.cuda()
-        in_imgs_crose = in_imgs_crose.cuda()
-        in_imgs_fine = in_imgs_fine.cuda()
-        self.encode_write_comb(in_style_ids, style_sample_index, in_imgs,in_imgs_crose,in_imgs_fine,in_stru_ids)
-        out, feat_scs,a_m,z_q_x,indice_out = self.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,in_stru_ids,reduction=reduction)
+        input_imgs_crose = input_imgs_crose.cuda()
+        input_imgs_fine = input_imgs_fine.cuda()
+        self.encode_write_comb(input_style_ids, style_sample_index, input_imgs,input_imgs_crose,input_imgs_fine,input_stru_ids)
+        out, feat_scs,a_m,z_q_x,indice_out = self.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,input_stru_ids,reduction=reduction)
         return out, feat_scs,a_m,z_q_x,indice_out
 

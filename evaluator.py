@@ -146,7 +146,6 @@ class Evaluator:
         #     ),
         # ) in enumerate(loader):
         for i, loader_list in enumerate(loader):
-            
             in_style_ids        = loader_list[0]
             in_imgs             = loader_list[1]
             in_imgs_ske         = loader_list[2]
@@ -233,6 +232,7 @@ class Evaluator:
 
         ret += (torch.cat(styles).float(),)
         
+        # ======================= Metric =======================
         psnr = batch_psnr(ret[1],ret[0],data_range=1)
         l1 = F.l1_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean").item()
         Rmse = torch.sqrt(F.mse_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean")).item()
@@ -249,7 +249,7 @@ class Evaluator:
         a['l1']=l1
         a['lpips_vgg']=lpips_vgg
         a['lpips_alex']=lpips_alex
-        
+        # =======================================================
         return ret,a
 
     def normalize(self, tensor, eps=1e-5):
