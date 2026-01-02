@@ -57,6 +57,8 @@ class TBWriter(Writer):
                 align_corners=False
             ).squeeze(0)
         self.writer.add_image(tag, img_tensor, global_step)
+    
+    
 
 
 class TBDiskWriter(TBWriter):

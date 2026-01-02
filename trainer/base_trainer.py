@@ -304,8 +304,8 @@ class BaseTrainer:
 
 
         ckpt_dir = self.cfg['work_dir'] / "checkpoints" / self.cfg['unique_name']
-        step_ckpt_name = "{:06d}-{}.pdparams".format(self.step, self.cfg['name'])
-        last_ckpt_name = "last.pdparams"
+        step_ckpt_name = "{:06d}-{}.ckpt".format(self.step, self.cfg['name'])
+        last_ckpt_name = "last.ckpt"
         step_ckpt_path = Path.cwd() /ckpt_dir / step_ckpt_name
         last_ckpt_path = ckpt_dir / last_ckpt_name
 

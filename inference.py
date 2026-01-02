@@ -15,7 +15,7 @@ from datasets import (load_lmdb, load_json, read_data_from_lmdb,
                       get_comb_trn_loader, get_cv_comb_loaders)
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def getCharList(root):
     '''
@@ -179,18 +179,41 @@ def eval_ckpt(args, cfg, avail, target_root):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("config_paths", nargs="+", help="path to config.yaml")
-    parser.add_argument("--weight", help="path to weight to evaluate")
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom_infer.yaml"])
+    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/VQ-Font/vq_font_results/checkpoints/vq_font_v1.6/220000-vq_font_v1.6.pdparams")
     parser.add_argument("--content_font", help="path to content font")
-    parser.add_argument("--img_path", help="path of the your test img directory.")
-    parser.add_argument("--saving_root", help="saving directory.")
+    parser.add_argument("--img_path", help="path of the your test img directory.", default="/home/dev/VQ-Font/datasets/content_font_image/NanumBarunpenR")
+    parser.add_argument("--saving_root", help="saving directory.", default="./inference_results/target_style_images")
     args = parser.parse_args()
 
     cfg = Config(*args.config_paths, default="./cfgs/defaults.yaml")
     target_folder_all = glob.glob(args.img_path+'/*')
-    # target_folder_all = args.img_path
+    
+    
+    # g_kwargs = cfg.get('g_args', {})
+    # g_cls = generator_dispatch()
+    # gen = g_cls(1, cfg['C'], 1, cfg, **g_kwargs)
+    g_kwargs = cfg.get("g_args", {})
+    g_cls = generator_dispatch()
+    gen = g_cls(1, cfg.C, 1, cfg, **g_kwargs)
+    if cfg.use_half: gen.half()
+    gen.cuda()
 
-    # print(target_folder_all)
+    import paddle
+    paddle_weights = paddle.load(args.weight)
+    torch_weights = {}
+
+    for k, v in paddle_weights.items():
+        torch_weights[k] = torch.tensor(v.numpy())  # Paddle Tensor → PyTorch Tensor
+
+    torch.save(torch_weights, "220000-vq_font_v1.6.pt")
+
+    weight = torch.load(args.weight)
+
+    if "generator_ema" in weight:
+        weight = weight["generator_ema"]
+    gen.load_state_dict(weight)
+
     for target_folder in target_folder_all:
         content_root = args.content_font
         saving_root = args.saving_root

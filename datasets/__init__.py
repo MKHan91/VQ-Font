@@ -98,20 +98,23 @@ def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
     n_fonts = cfg.cv_n_fonts
 
     # dictionary에서 몇 개 선택하기
-    ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
-    sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
-    sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
-    uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis) #['6E6B']
+    # ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
+    # sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
+    # sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
+    sfs = uniform_sample(["reference_images"], n_fonts)
+    # sfs = sfs * n_fonts
+    sus = uniform_sample(data_meta["train"]["reference_images"], n_unis)
+    uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
     
     sfsu_dict = {fname: sus for fname in sfs}
     sfuu_dict = {fname: uus for fname in sfs}
-    ufsu_dict = {fname: sus for fname in ufs}
-    ufuu_dict = {fname: uus for fname in ufs}
+    # ufsu_dict = {fname: sus for fname in ufs}
+    # ufuu_dict = {fname: uus for fname in ufs}
     
     cv_loaders = {'sfsu': get_comb_test_loader(env, env_get, sfsu_dict, cfg, data_meta['avail'], transform, **kwargs)[1], 
                   'sfuu': get_comb_test_loader(env, env_get, sfuu_dict, cfg, data_meta['avail'], transform, **kwargs)[1],
-                  'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, **kwargs)[1],
-                  'ufuu': get_comb_test_loader(env, env_get, ufuu_dict, cfg, data_meta['avail'], transform, **kwargs)[1]
+                #   'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, **kwargs)[1],
+                #   'ufuu': get_comb_test_loader(env, env_get, ufuu_dict, cfg, data_meta['avail'], transform, **kwargs)[1]
                   }
 
     return cv_loaders

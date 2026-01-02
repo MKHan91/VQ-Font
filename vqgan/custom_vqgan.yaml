@@ -34,12 +34,12 @@ data:
     train:
       target: taming.data.custom.CustomTrain
       params:
-        training_images_list_file: /home/dev/VQ-Font/vqgan_data/train_custom.txt
+        training_images_list_file: /home/dev/Project/VQ-Font/vqgan_data/train_custom.txt
         size: 128
     validation:
       target: taming.data.custom.CustomTest
       params:
-        test_images_list_file: /home/dev/VQ-Font/vqgan_data/valid_custom.txt
+        test_images_list_file: /home/dev/Project/VQ-Font/vqgan_data/valid_custom.txt
         size: 128
 
 lightning:
@@ -47,3 +47,5 @@ lightning:
     accelerator: "gpu"
     devices: 1
     # gpus: "0"  # 0번 GPU 사용
+
+ckpt_path: /home/dev/Project/VQ-Font/logs/2025-10-25T10-33-19_custom_vqgan/checkpoints/epoch=000110.ckpt

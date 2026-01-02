@@ -26,6 +26,7 @@ def get_obj_from_str(string, reload=False):
     return getattr(importlib.import_module(module, package=None), cls)
 
 
+# region - generator
 class Generator(nn.Module):
     """
     Generator
@@ -36,7 +37,8 @@ class Generator(nn.Module):
         config = OmegaConf.merge(*configs, {})
         model = instantiate_from_config(config.model)
         # model.init_from_ckpt('vqgan/1024_16*16_vaecoder.ckpt')
-        model.init_from_ckpt('/home/dev/VQ-Font/logs/2025-10-25T10-33-19_custom_vqgan/checkpoints/epoch=000110.ckpt')
+        model.init_from_ckpt(config.ckpt_path)
+        
         self.vqgan = model  
         for name,para in self.vqgan.named_parameters():
             print(name)
@@ -77,7 +79,10 @@ class Generator(nn.Module):
         self.comp_emb = nn.Sequential(nn.Embedding(25,256),nn.Sigmoid())
         self.token_emb = nn.Sequential(nn.Embedding(25,256),nn.Sigmoid())
         self.fuse_emb = nn.Sequential(nn.Embedding(25,256),nn.Sigmoid())
+        
         self.integrator = partial(Integrator, norm='in', activ='relu', weight_init='xavier')(C*8, C_content=C_content)
+        
+        self.style_reducer = torch.nn.Conv2d(256*3, 256, kernel_size=1).cuda()
     
     def reset_memory(self):
         """
@@ -85,27 +90,62 @@ class Generator(nn.Module):
         """
         self.memory.reset_memory()
 
+
     def get_kqv_matrix(self, fm, linears):
         #matmul with style featuremaps and content featuremaps
         ret = linears(fm)
         return ret
 
-    def encode_write_comb(self, style_ids, style_sample_index, style_imgs, style_imgs_crose,style_imgs_fine,in_stru_ids,reset_memory=True):
-        """
-        encode_write_comb
-        """
+    # region encode_write_comb
+    def encode_write_comb(self, 
+                          style_ids, 
+                          style_sample_index, 
+                          style_imgs, 
+                          style_imgs_crose, 
+                          style_imgs_fine, 
+                          in_stru_ids, 
+                          reset_memory=True):
+        
         if reset_memory:
             self.reset_memory()
 
-        feat_scs= self.component_encoder(style_imgs)
-        self.memory.write_comb(style_ids, style_sample_index, feat_scs['last'])
+        # --------------------- Style Manipulation ---------------------
+        feat_scs = self.component_encoder(style_imgs)
+        feat_scs_crose = self.component_encoder(style_imgs_crose)
+        feat_scs_fine = self.component_encoder(style_imgs_fine)
+        
+        style_latent = feat_scs['last']
+        style_latent_crose = feat_scs_crose['last']
+        style_latent_fine = feat_scs_fine['last']
+        
+
+        # Style latent Augmentation
+        style_latent_aug = style_latent + 0.05 * torch.randn_like(style_latent)
+        style_latent_crose_aug = style_latent_crose + 0.05 * torch.randn_like(style_latent_crose)
+        style_latent_fine_aug = style_latent_fine + 0.02 * torch.randn_like(style_latent_fine)
+        
+        target_size = style_latent_aug.shape[-2:]
+        style_latent_crose_aug = F.interpolate(style_latent_crose_aug, size=target_size, mode='bilinear')
+        style_latent_fine_aug = F.interpolate(style_latent_fine_aug, size=target_size, mode='bilinear')
+        
+        style_latent_aug = style_latent_aug.type(style_latent.dtype)
+        style_latent_crose_aug = style_latent_crose_aug.type(style_latent.dtype)
+        style_latent_fine_aug = style_latent_fine_aug.type(style_latent.dtype)
+        
+        comb_style_latent = torch.cat([style_latent_aug,
+                                       style_latent_crose_aug,
+                                       style_latent_fine_aug], dim=1)
+        comb_style_latent = self.style_reducer(comb_style_latent)
+        # ---------------------------------------------------------------
+        
+        # self.memory.write_comb(style_ids, style_sample_index, feat_scs['last'])
+        self.memory.write_comb(style_ids, style_sample_index, comb_style_latent)
 
         return feat_scs
 
+
     def read_memory(self, target_style_ids, trg_sample_index, reset_memory=True,reduction='mean'):
-        """
-        read_memory
-        """   
+        
         feats = self.memory.read_chars(target_style_ids, trg_sample_index, reduction=reduction)
         feats = torch.stack([x for x in feats]) #[B,3,C,H,W]
         batch, shot, channel, h, w = feats.shape
@@ -126,6 +166,7 @@ class Generator(nn.Module):
             self.reset_memory()
 
         return key_matrix, value_matrix
+
 
     def cont_similarity(self,tar_stru,similarity):
         sim =[]
@@ -212,6 +253,7 @@ class Generator(nn.Module):
                 sim.append(a)
         return sim
         
+        
     def refer_similarity(self,in_stru,refer):
         res=[]
         num=[]
@@ -285,6 +327,7 @@ class Generator(nn.Module):
                 res.append(a)
                 num.append(1)                                                
         return res ,num           
+
 
     def fusion_am(self,refer,in_stru,tar_stru,similarity):
         atten_map = []
@@ -921,8 +964,8 @@ class Generator(nn.Module):
         atten_map = torch.cat(refer_res,dim=3)
         return atten_map
 
+
     def fusion_atten(self,a_m,trg_stru_ids,in_stru_ids):
-        
         a_m_bak = a_m
         B,heads,_,_ = a_m_bak.size()
         a_m_res = []
@@ -960,12 +1003,24 @@ class Generator(nn.Module):
 
         return a_m_fusion
     
+    
+    # region - read_decode
     def read_decode(self, target_style_ids, trg_sample_index, content_imgs, trg_stru_ids,in_stru_ids,reset_memory=True, \
                     reduction='mean'):
-        """
-        read_decode
-        """
-        key_matrix, value_matrix = self.read_memory(target_style_ids, trg_sample_index, reset_memory, reduction=reduction)#[B,C,H,W]
+        
+        key_matrix, value_matrix = self.read_memory(target_style_ids, 
+                                                    trg_sample_index, 
+                                                    reset_memory, 
+                                                    reduction=reduction)#[B,C,H,W]
+        
+        # batch = key_matrix.shape[0]
+        # d_channel = key_matrix.shape[-1]
+        # if key_matrix.shape[2] != 768:
+        #     # 증강된 스타일들을 평균내어 하나의 스타일 대표값으로 만듭니다.
+        #     key_matrix = key_matrix.view(batch, self.num_heads, -1, 768, d_channel).mean(dim=2).view(batch, self.num_heads, -1, d_channel)
+        #     value_matrix = value_matrix.view(batch, self.num_heads, -1, 768, d_channel).mean(dim=2).view(batch, self.num_heads, -1, d_channel)
+        
+        
         content_feats = self.content_encoder(content_imgs) #B,C,H,W
         content_feats = content_feats
         content_feats_permute = content_feats.transpose(1,2).transpose(2,3) #B,H,W,C
@@ -1002,12 +1057,16 @@ class Generator(nn.Module):
         indice_out = self.mlp_head(fusion_).permute(1,0,2).reshape(-1,1024)
         indice_out_ = torch.argmax(indice_out,dim=-1)#shape[2048]
         z_q_x = self.vqgan.quantize.forward_with_indice(fusion,indice_out_)
+        
         out = self.vqgan.decode(z_q_x)
 
         if reset_memory:
             self.reset_memory()
-        return out, fusion,attention_mask,z_q_x,indice_out
+            
+        return out, fusion, attention_mask, z_q_x, indice_out
 
+
+    # region - infer
     def infer(self, 
               input_style_ids, input_imgs, input_imgs_crose, input_imgs_fine, 
               trg_style_ids, style_sample_index, trg_sample_index, 
@@ -1015,16 +1074,27 @@ class Generator(nn.Module):
               input_stru_ids,
               trg_stru_ids,
               reduction="mean"):
-        """
-        infer
-        """
+
         input_style_ids = input_style_ids.cuda()
         input_imgs = input_imgs.cuda()
         trg_style_ids = trg_style_ids.cuda()
         content_imgs = content_imgs.cuda()
         input_imgs_crose = input_imgs_crose.cuda()
         input_imgs_fine = input_imgs_fine.cuda()
-        self.encode_write_comb(input_style_ids, style_sample_index, input_imgs,input_imgs_crose,input_imgs_fine,input_stru_ids)
-        out, feat_scs,a_m,z_q_x,indice_out = self.read_decode(trg_style_ids, trg_sample_index, content_imgs,trg_stru_ids,input_stru_ids,reduction=reduction)
-        return out, feat_scs,a_m,z_q_x,indice_out
+        
+        self.encode_write_comb(input_style_ids, 
+                               style_sample_index, 
+                               input_imgs, 
+                               input_imgs_crose, 
+                               input_imgs_fine, 
+                               input_stru_ids)
+        
+        out, feat_scs, a_m, z_q_x, indice_out = self.read_decode(trg_style_ids, 
+                                                                 trg_sample_index, 
+                                                                 content_imgs, 
+                                                                 trg_stru_ids, 
+                                                                 input_stru_ids, 
+                                                                 reduction=reduction)
+        
+        return out, feat_scs, a_m, z_q_x, indice_out
 

@@ -10,6 +10,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from .lmdbutils import read_data_from_lmdb
 import threading
+import torchvision.transforms as T
+
 import cv2
 from skimage import morphology
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -39,10 +41,23 @@ class CombTrainDataset(Dataset):
         print ('#'*30 + f' number of content_chars: {self.n_content_chars} ' + '#'*30)
         print ('#'*30 + f' number of train fonts: {self.n_fonts} ' + '#'*30)
         
+        # self.augment = T.Compose([T.RandomRotation(10),        # -10 ~ +10도 회전
+        #                         #   T.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 스케일 변환
+        #                           T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        #                           T.RandomHorizontalFlip()])
+        self.augment = T.Compose([
+            T.RandomApply([T.RandomAffine(degrees=10, 
+                                          translate=(0.1,0.1), 
+                                          scale=(0.9,1.1), 
+                                          shear=10)],
+                          p=0.5),
+            T.RandomPerspective(distortion_scale=0.2, p=0.3)
+        ])
+        self.n_aug = 1  # augmentation 횟수
         
     # region font cr_mapping
-    def sample_pair_style(self, font_name, trg_unis, avail_unis):
-        trg_uni = trg_unis[0] 
+    def sample_pair_style(self, font_name, intersec_train_uni, train_unis):
+        trg_uni = intersec_train_uni[0] 
         style_unis = self.cr_mapping[trg_uni]
 
         try:           
@@ -56,11 +71,7 @@ class CombTrainDataset(Dataset):
                 
             imgs_ske = torch.cat([self.transform(Image.fromarray(img)) for img in imgs_ske])
             imgs = torch.cat([self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]) 
-            
-            # for img_ske, img in zip(imgs_ske, imgs):
-            #     ske = (img_ske.cpu().numpy() + 1) * 100
-            #     sample = (img.cpu().numpy() * 255).astype(np.uint8)
-            #     a=1
+
         except:
             return None, None
         # imgs = paddle.concat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis])
@@ -82,8 +93,8 @@ class CombTrainDataset(Dataset):
     def __getitem__(self, index):
         font_idx = index % self.n_fonts
         
-        # train_font_name = self.train_font_names[font_idx]
-        train_font_name = "reference_images"
+        train_font_name = self.train_font_names[font_idx]
+        # train_font_name = "reference_images"
         train_unis = self.train_font_dict[train_font_name]
         
         sample_index = torch.tensor([index])
@@ -91,12 +102,27 @@ class CombTrainDataset(Dataset):
         while True:
             intersec_train_uni = self.get_random_trg(train_unis)
             """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
-            style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
-            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
+            # style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
             if style_imgs is None: 
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
 
+            # augmentation 적용
+            style_imgs_aug = []
+            style_imgs_ske_aug = []
+            for img, ske in zip(style_imgs, style_imgs_ske):
+                img, ske = img.unsqueeze(0), ske.unsqueeze(0)
+                combined = torch.cat([img, ske], dim=0)
+                combined = self.augment(combined)
+                
+                for _ in range(self.n_aug):
+                    style_imgs_aug.append(combined[0:1])
+                    style_imgs_ske_aug.append(combined[1:2])
+                    
+            style_imgs = torch.cat(style_imgs_aug)
+            style_imgs_ske = torch.cat(style_imgs_ske_aug)
+            
             trg_imgs = torch.cat([self.env_get(self.env, train_font_name, uni, self.transform)
                                   for uni in intersec_train_uni])
             

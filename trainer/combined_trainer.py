@@ -11,9 +11,9 @@ class CombinedTrainer(BaseTrainer):
     """
     CombinedTrainer
     """
-    def __init__(self, ddp_gpu,gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
+    def __init__(self, ddp_gpu, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
                  logger, evaluator, cv_loaders, cfg, writer): # cls_char
-        super().__init__(ddp_gpu,gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
+        super().__init__(ddp_gpu, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
                          logger, evaluator, cv_loaders, cfg, writer)
 
     # region - train
@@ -35,14 +35,15 @@ class CombinedTrainer(BaseTrainer):
         self.clear_losses()
         self.logger.info("Start training ...")
         
-        with open('/home/dev/VQ-Font/build_dataset/structure_tags.json','r') as f:
+        with open(self.cfg.structure_tags_path,'r') as f:
             stru_map = json.load(f,strict=False)
-        with open('/home/dev/VQ-Font/build_dataset/cr_mapping.json','r') as f:
+        with open(self.cfg.cr_mapping_path,'r') as f:
             cr_map = json.load(f,strict=False)
-        with open('/home/dev/VQ-Font/build_dataset/de.json','r') as f:
+        with open(self.cfg.de_path,'r') as f:
             de = json.load(f,strict=False)
         
         # region 학습 시작
+        # noise_strength = 0.05
         while True:
             for (input_style_ids, input_imgs, input_imgs_ske,
                  trg_style_ids, trg_uni_ids, trg_imgs, 
@@ -118,15 +119,36 @@ class CombinedTrainer(BaseTrainer):
                 # out, z_e_x,_,z_q_x ,indice_out= self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs, trg_stru_ids, in_stru_ids) #fake_img
                 # self_infer_imgs, z_e_x_self ,_,z_q_x_self, indice_self= self.gen.infer(trg_style_ids, trg_imgs, trg_imgs_crose, trg_imgs_fine, trg_style_ids, trg_sample_index, trg_sample_index, content_imgs,trg_stru_ids,trg_stru_ids)
                 
-                quant, _, info = self.gen.vqgan.encode(trg_imgs) #info[2]:[2048]
+                """
+                codebook lookup(quantization)이 일어남.
+                codebook index를 infor로 return
+                """
+                quant, _, info = self.gen.vqgan.encode(trg_imgs)
+                # 원본 이미지 재구성
                 _ = self.gen.vqgan.decode(quant)
-                # 여기서 style embedding 추출
-                _ = self.gen.encode_write_comb(input_style_ids, style_sample_index, input_imgs, input_imgs_crose,input_imgs_fine,in_stru_ids)
+                # 여기서 style embedding을 만들고 저장.
+                # codebook에서 latent vector를 가져와서 style 특성을 표현.
+                sc_feats = self.gen.encode_write_comb(input_style_ids, 
+                                               style_sample_index, 
+                                               input_imgs, 
+                                               input_imgs_crose,
+                                               input_imgs_fine,
+                                               in_stru_ids)
+
                 # style이 적용된 content 이미지로서 fake 이미지로 쓰임.
-                out, _, _, _ , indice_out = self.gen.read_decode(trg_style_ids, trg_sample_index, content_imgs, trg_stru_ids, in_stru_ids)
+                out, _, _, _ , indice_out = self.gen.read_decode(trg_style_ids, 
+                                                                 trg_sample_index, 
+                                                                 content_imgs, 
+                                                                 trg_stru_ids, 
+                                                                 in_stru_ids)
                 # self-reconstruction
-                _, _ ,_, _, indice_self = self.gen.infer(trg_style_ids, trg_imgs, trg_imgs_crose, trg_imgs_fine, 
-                                                         trg_style_ids, trg_sample_index, trg_sample_index, 
+                _, _ ,_, _, indice_self = self.gen.infer(trg_style_ids, 
+                                                         trg_imgs, 
+                                                         trg_imgs_crose, 
+                                                         trg_imgs_fine, 
+                                                         trg_style_ids, 
+                                                         trg_sample_index, 
+                                                         trg_sample_index, 
                                                          content_imgs,
                                                          trg_stru_ids,
                                                          trg_stru_ids)
@@ -159,6 +181,12 @@ class CombinedTrainer(BaseTrainer):
                     tag_scalar_dic = self.baseplot(losses, discs, stats)
 
                 if self.step % self.cfg['print_freq'] == 0:
+                    self.writer.add_scalars({"optimization/loss/cross entropy": losses.cross.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/L1": losses.l1.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/smooth L1": losses.feat.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/discriminator": losses.disc.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.step)
+                    
                     self.log(losses, discs, stats)
                     losses.resets()
                     discs.resets()
@@ -170,20 +198,22 @@ class CombinedTrainer(BaseTrainer):
                         self.logger.info(f"Validation at Epoch = {epoch:.3f}")
                         self.evaluator.cp_validation(self.gen_ema, self.cv_loaders, self.step)
                         
-                        self.writer.add_scalars({"learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.step)
-                        self.writer.add_scalars({"learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
+                        rnd_idx = torch.randint(low=0, high=trg_imgs.shape[0], size=(1, ))
+                        self.writer.add_image("training/VQGAN input image", trg_imgs[rnd_idx].squeeze(0), self.step)
+                        self.writer.add_image("training/styled content image", out[rnd_idx].squeeze(0), self.step)
+                        
+                        self.writer.add_scalars({"optimization/learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.step)
+                        self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
                         
                 # if self.step >= 250000 and self.step % self.cfg['val_freq']==0:     
-                if self.step >= 25000 and self.step % self.cfg['val_freq']==0:     
+                if self.step >= self.cfg.save_freq and self.step % self.cfg['val_freq']==0:     
                     self.save(loss_dic['g_total'], self.cfg['save'], self.cfg.get('save_freq', self.cfg['val_freq']))
                     
-                if self.step >= max_step:
-                    break
+                if self.step >= max_step: break
 
                 self.step += 1
                 
-            if self.step >= max_step:
-                break
+            if self.step >= max_step: break
             
         self.logger.info("Iteration finished.")
         # region 학습 끝

@@ -12,12 +12,12 @@ import lpips
 import json
 
 
-with open('/home/dev/VQ-Font/build_dataset/structure_tags.json','r') as f:
+with open('/home/dev/Project/VQ-Font/build_dataset/structure_tags.json','r') as f:
     stru_map = json.load(f,strict=False)
 
-with open('/home/dev/VQ-Font/build_dataset/cr_mapping.json','r') as f:
+with open('/home/dev/Project/VQ-Font/build_dataset/cr_mapping.json','r') as f:
     cr_map = json.load(f,strict=False)
-with open('/home/dev/VQ-Font/build_dataset/de.json','r') as f:
+with open('/home/dev/Project/VQ-Font/build_dataset/de.json','r') as f:
     de = json.load(f,strict=False)
 def paddle_eval(val_fn):
     @torch.no_grad()
@@ -115,7 +115,7 @@ class Evaluator:
                                reduction="mean"):
         
         n_row = loader.dataset.n_uni_per_font * kshot
-        compare_batches, metrics= self.infer_loader(gen, loader, kshot, reduction=reduction)
+        compare_batches, metrics = self.infer_loader(gen, loader, kshot, reduction=reduction)
 
         comparable_grid = utils.make_comparable_grid(*compare_batches[::-1], nrow=n_row)
 
@@ -237,20 +237,22 @@ class Evaluator:
         l1 = F.l1_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean").item()
         Rmse = torch.sqrt(F.mse_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean")).item()
         ssim = batch_ssim(ret[1],ret[0])
-        lpips_alex = self.loss_fn_alex(ret[1].detach().cpu(),ret[0].detach().cpu()).mean().item()
-        lpips_vgg = self.loss_fn_vgg(ret[1].detach().cpu(),ret[0].detach().cpu()).mean().item()
+        lpips_alex = self.loss_fn_alex(ret[1].detach().cpu(),
+                                       ret[0].detach().cpu()).mean().item()
+        lpips_vgg = self.loss_fn_vgg(ret[1].detach().cpu(),
+                                     ret[0].detach().cpu()).mean().item()
         
         print(f'L1:{l1:.3f}, RMSE: {Rmse:.3f}, PSNR: {psnr:.3f}, ssim: {ssim:.3f}, lpips_alex: {lpips_alex:.3f}, lpips_vgg: {lpips_vgg:.3f}')
         
         a = {}
-        a['Rmse']=Rmse
-        a['psnr']=psnr
-        a['ssim']=ssim
-        a['l1']=l1
-        a['lpips_vgg']=lpips_vgg
-        a['lpips_alex']=lpips_alex
+        a['evaluation/error/Rmse']=Rmse
+        a['evaluation/acc/psnr']=psnr
+        a['evaluation/acc/ssim']=ssim
+        a['evaluation/error/l1']=l1
+        a['evaluation/error/lpips_vgg']=lpips_vgg
+        a['evaluation/error/lpips_alex']=lpips_alex
         # =======================================================
-        return ret,a
+        return ret, a
 
     def normalize(self, tensor, eps=1e-5):
         """ Normalize tensor to [0, 1] """
@@ -270,7 +272,15 @@ class Evaluator:
         output_folder = os.path.join(save_dir, "images")
         os.makedirs(output_folder, exist_ok=True)
         ch_list_check = []
-        for (in_style_ids,in_imgs,trg_style_ids,trg_unis,style_unis,style_sample_index,trg_sample_index,content_imgs,) in tqdm.tqdm(loader):
+        for (in_style_ids,
+             in_imgs,
+             trg_style_ids,
+             trg_unis,
+             style_unis,
+             style_sample_index,
+             trg_sample_index,
+             content_imgs,) in tqdm.tqdm(loader):
+            
             if self.use_half:
                 in_imgs = in_imgs.half()
                 content_imgs = content_imgs.half()

@@ -50,9 +50,9 @@ def setup_args_and_config():
     setup_args_and_configs
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default="vq_font_v1.4")
-    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom.yaml"])
-    parser.add_argument("--resume", default="/home/dev/VQ-Font/logs/2025-11-02T10-46-17_custom_vqgan/checkpoints/epoch=000108.ckpt")
+    parser.add_argument("--name", default="vq_font_v1.9")
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
+    parser.add_argument("--resume", default="/home/dev/Project/VQ-Font/logs/2025-11-02T10-46-17_custom_vqgan/checkpoints/epoch=000108.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()
@@ -207,10 +207,10 @@ def train(args, cfg, ddp_gpu=-1):
     
     g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
-    gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
-    dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
-    # gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=2, eta_min=1e-6)
-    # dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=2, eta_min=1e-6)
+    # gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
+    # dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
+    gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=1)
+    dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
 
     st_step = 1
     if args.resume:
@@ -235,7 +235,7 @@ def train(args, cfg, ddp_gpu=-1):
                           use_half=cfg.use_half
                           )
     
-    trainer = CombinedTrainer(ddp_gpu,gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler,
+    trainer = CombinedTrainer(ddp_gpu, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler,
                       logger, evaluator, cv_loaders, cfg, writer)
     trainer.train(trn_loader, st_step, cfg["iter"])
 
