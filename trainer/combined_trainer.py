@@ -65,15 +65,20 @@ class CombinedTrainer(BaseTrainer):
                 content_imgs = content_imgs.cuda()
                 
                 # input_styles_unis를 가져오기
-                input_styles_unis = []
-                for i in trg_unis:
-                    input_styles_unis.append(cr_map[i[0]])
+                # input_styles_unis = []
+                # for i in trg_unis:
+                #     input_styles_unis.append(cr_map[i[0]])
 
                 # 타깃 시퀀스에서 각 단위의 구조 정보를 가져와 GPU용 텐서로 변환
-                trg_stru_ids = []
-                for i in trg_unis:
-                    trg_stru_ids.append(stru_map[i[0]])
-                trg_stru_ids = torch.tensor(trg_stru_ids).cuda()
+                # trg_stru_ids = []
+                # for i in trg_unis:
+                #     trg_stru_ids.append(stru_map[i[0]])
+                # trg_stru_ids = torch.tensor(trg_stru_ids).cuda()
+                
+                # input_styles_unis를 가져오기
+                input_styles_unis = [cr_map[i[0]] for i in trg_unis]
+                # 타깃 시퀀스에서 각 단위의 구조 정보를 가져와 GPU용 텐서로 변환
+                trg_stru_ids      = torch.tensor([stru_map[i[0]] for i in trg_unis]).cuda()
                 
                 in_stru_ids=[]
                 for k in input_styles_unis:
@@ -85,6 +90,7 @@ class CombinedTrainer(BaseTrainer):
                 trg_comp_ids = []
                 for i in trg_unis:
                     trg_comp_ids.append(de[i[0]])
+                    
                 in_comp_ids=[]
                 for k in input_styles_unis:
                     for i in range(3):

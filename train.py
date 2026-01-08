@@ -50,7 +50,7 @@ def setup_args_and_config():
     setup_args_and_configs
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default="vq_font_v1.9")
+    parser.add_argument("--name", default="vq_font_v2.0")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
     parser.add_argument("--resume", default="/home/dev/Project/VQ-Font/logs/2025-11-02T10-46-17_custom_vqgan/checkpoints/epoch=000108.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
