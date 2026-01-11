@@ -12,3 +12,4 @@ logs/
 vq_font_results
 
 __pycache__
+datasets/handwrite_dataset_v2

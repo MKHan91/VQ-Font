@@ -11,7 +11,10 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
 from pytorch_lightning.utilities.distributed import rank_zero_only
+from torch.utils.data import WeightedRandomSampler # 1. 샘플러 임포트
 
+import cv2
+import albumentations as A
 
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
@@ -59,7 +62,7 @@ def get_parser(**parser_kwargs):
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=["/home/dev/VQ-Font/vqgan/custom_vqgan.yaml"],
+        default=["/home/dev/Project/VQ-Font/vqgan/custom_vqgan.yaml"],
     )
     parser.add_argument(
         "-t",
@@ -119,17 +122,31 @@ def instantiate_from_config(config):
     # return get_obj_from_str(config["target"])(**config.get("params", dict()))
     return get_obj_from_str(config.target)(**config.get("params", dict()))
 
+
 # region - WrappedDataset
 class WrappedDataset(Dataset):
     """Wraps an arbitrary object with __len__ and __getitem__ into a pytorch dataset"""
     def __init__(self, dataset):
         self.data = dataset
 
+        self.aug = A.Compose([
+            A.OneOf(
+                [A.Morphological(op=cv2.MORPH_DILATE, kernel=(2, 2), p=1.0),
+                 A.Morphological(op=cv2.MORPH_ERODE, kernel=(2, 2), p=1.0)],
+                p=0.5),
+            A.ElasticTransform(alpha=2, sigma=50, alpha_affine=50, p=0.8),
+            A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
+            A.RandomBrightnessContrast(p=0.5)])
+        
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        img = self.data[idx]
+        img = self.aug(image=img.numpy().transpose(1, 2, 0))["image"]
+        img = torch.from_numpy(img).transpose(2, 0, 1)
+        
+        return img
 
 
 # region - DataConfig
@@ -163,9 +180,33 @@ class DataModuleFromConfig(pl.LightningDataModule):
             for k in self.datasets:
                 self.datasets[k] = WrappedDataset(self.datasets[k])
 
+    def _is_important_style(self, sample):
+            """중요 스타일인지 판별하는 로직 (사용자 환경에 맞게 수정 필요)"""
+            # 예: 경로에 특정 단어가 포함되어 있는지 확인
+            dirname = osp.split(sample['file_path_'])[0]
+            basename = osp.basename(dirname)
+            if basename == 'reference_images_v2':
+                return True
+            return False
+
     def _train_dataloader(self):
-        return DataLoader(self.datasets["train"], batch_size=self.batch_size,
-                          num_workers=self.num_workers, shuffle=True)
+        weights = []
+        for i in range(len(self.datasets['train'])):
+            sample = self.datasets['train'][i]
+            # 예: sample에 'style' 정보가 있다고 가정 (경로나 라벨로 판별)
+            # 만약 특정 스타일이 중요한 스타일이라면 가중치를 높게(예: 10), 아니면 낮게(1)
+            if self._is_important_style(sample):
+                weights.append(10.0)  # 중요 스타일은 10배 더 자주 추출
+            else:
+                weights.append(1.0)
+        
+        weights = torch.DoubleTensor(weights)
+        sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+        
+        return DataLoader(self.datasets["train"], 
+                          batch_size=self.batch_size,
+                          num_workers=self.num_workers, 
+                          sampler=sampler)
 
     def _val_dataloader(self):
         return DataLoader(self.datasets["validation"],
@@ -412,10 +453,11 @@ if __name__ == "__main__":
         else:
             name = ""
         nowname = now+name+opt.postfix
-        logdir = osp.join("logs", nowname)
+        logdir = osp.join(osp.dirname(__file__), "experiments")
 
-    ckptdir = osp.join(logdir, "checkpoints")
-    cfgdir = osp.join(logdir, "configs")
+    ckptdir = osp.join(logdir, "checkpoints", nowname)
+    cfgdir = osp.join(logdir, "configs", nowname)
+    
     seed_everything(opt.seed)
 
     try:
