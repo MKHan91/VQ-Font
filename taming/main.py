@@ -421,7 +421,7 @@ if __name__ == "__main__":
             "-n/--name and -r/--resume cannot be specified both."
             "If you want to resume training in a new log folder, "
             "use -n/--name in combination with --resume_from_checkpoint"
-        )
+        ) 
     
     if opt.resume:
         if not osp.exists(opt.resume):

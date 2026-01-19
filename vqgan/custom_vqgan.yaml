@@ -48,4 +48,4 @@ lightning:
     devices: 1
     # gpus: "0"  # 0번 GPU 사용
 
-ckpt_path: /home/dev/Project/VQ-Font/logs/2025-10-25T10-33-19_custom_vqgan/checkpoints/epoch=000110.ckpt
+ckpt_path: /home/dev/Project/VQ-Font/taming/experiments/checkpoints/2026-01-11T10-58-28_custom_vqgan/epoch=000781.ckpt

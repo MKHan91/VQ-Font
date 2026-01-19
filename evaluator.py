@@ -15,10 +15,12 @@ import json
 with open('/home/dev/Project/VQ-Font/build_dataset/structure_tags.json','r') as f:
     stru_map = json.load(f,strict=False)
 
-with open('/home/dev/Project/VQ-Font/build_dataset/cr_mapping.json','r') as f:
+with open('/home/dev/Project/VQ-Font/build_dataset/cr_mapping_v2.json','r') as f:
     cr_map = json.load(f,strict=False)
-with open('/home/dev/Project/VQ-Font/build_dataset/de.json','r') as f:
+with open('/home/dev/Project/VQ-Font/build_dataset/de_v2.json','r') as f:
     de = json.load(f,strict=False)
+    
+    
 def paddle_eval(val_fn):
     @torch.no_grad()
     def decorated(self, gen, *args, **kwargs):

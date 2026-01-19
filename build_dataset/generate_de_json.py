@@ -119,17 +119,19 @@ def verify_de_json(json_path='de.json'):
 
 
 if __name__ == "__main__":
-    train_data_dir = "/home/dev/VQ-Font/datasets/train_font_image"
+    train_data_dir = "/home/dev/Project/VQ-Font/datasets/train_font_image"
     
     train_names = []
     for folderName in os.listdir(train_data_dir):
+        if folderName == "reference_images": continue
+        
         for fileName in os.listdir(osp.join(train_data_dir, folderName)):
             train_names.append(fileName.split('.')[0])
     
     train_chars = list(set(train_names))
     
     # de.json 생성
-    generate_de_json('./build_dataset/de.json')
+    generate_de_json('./build_dataset/de_v2.json')
     
     # 검증
-    verify_de_json('./build_dataset/de.json')
+    verify_de_json('./build_dataset/de_v2.json')

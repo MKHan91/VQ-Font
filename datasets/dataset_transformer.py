@@ -103,7 +103,8 @@ class CombTrainDataset(Dataset):
             intersec_train_uni = self.get_random_trg(train_unis)
             """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
             # style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
-            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
+            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
             if style_imgs is None: 
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
@@ -249,7 +250,7 @@ class CombTestDataset(Dataset):
                 
             b = [self.transform(Image.fromarray(img)) for img in imgs_ske]
             # a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
-            a = [self.env_get(self.env, "reference_images", uni, self.transform) for uni in style_unis]
+            a = [self.env_get(self.env, "reference_images_v2", uni, self.transform) for uni in style_unis]
             
         except:
             print (font_name, style_unis)

@@ -134,7 +134,7 @@ if __name__ == "__main__":
     # --------------------------
     # 2️⃣ reference character 리스트 (사용자가 갖고 있는 18개)
     # 예: 18개의 reference 글자를 HEX로 제공했다고 가정
-    ref_dir = "/home/dev/VQ-Font/datasets/train_font_image/reference_images"
+    ref_dir = "/home/dev/Project/VQ-Font/datasets/train_font_image/reference_images_v2"
     ref_chars = [char[:-4] for char in os.listdir(ref_dir) if not (('2' in char) or ('3' in char))]
 
     # --------------------------
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     # --------------------------
     # 4️⃣ JSON 저장
     print()
-    with open("./build_dataset/cr_mapping.json", "w", encoding="utf-8") as f:
+    with open("./build_dataset/cr_mapping_v2.json", "w", encoding="utf-8") as f:
         json.dump(cr_mapping, f, ensure_ascii=False, indent=2)
 
     print("C-R mapping 생성 완료!")

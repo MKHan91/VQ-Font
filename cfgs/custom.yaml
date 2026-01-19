@@ -3,12 +3,12 @@ use_ddp: False
 port: 7890
 
 work_dir: ./vq_font_results
-data_path: /home/dev/Project/VQ-Font/datasets/handwrite_dataset/lmdb/  # path/to/saved/lmdb
-data_meta: /home/dev/Project/VQ-Font/datasets/handwrite_dataset/meta/train.json  # meta/train.json
-content_reference_json: /home/dev/Project/VQ-Font/build_dataset/cr_mapping.json
+data_path: /home/dev/Project/VQ-Font/datasets/handwrite_dataset_v2/lmdb/  # path/to/saved/lmdb
+data_meta: /home/dev/Project/VQ-Font/datasets/handwrite_dataset_v2/meta/train.json  # meta/train.json
+content_reference_json: /home/dev/Project/VQ-Font/build_dataset/cr_mapping_v2.json
 structure_tags_path: /home/dev/Project/VQ-Font/build_dataset/structure_tags.json
-cr_mapping_path: /home/dev/Project/VQ-Font/build_dataset/cr_mapping.json
-de_path: /home/dev/Project/VQ-Font/build_dataset/de.json
+cr_mapping_path: /home/dev/Project/VQ-Font/build_dataset/cr_mapping_v2.json
+de_path: /home/dev/Project/VQ-Font/build_dataset/de_v2.json
 # content_font: "UhBee_ann"
 
 input_size: 128
