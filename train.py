@@ -68,7 +68,7 @@ def setup_args_and_config():
 
     if args.use_unique_name:
         timestamp = utils.timestamp()
-        unique_name = "{}_{}".format(timestamp, args.name)
+        unique_name = f"{timestamp}_{args.name}"
     else:
         unique_name = args.name
 
@@ -101,9 +101,10 @@ def setup_args_and_config():
             shutil.copy2(osp.join(src, "lmdbutils.py"), args.codesdir/item)
             continue
         
-        if osp.isdir(src):
-            shutil.copytree(src, args.codesdir / item, dirs_exist_ok=True)
-        else:
+        # if osp.isdir(src):
+        #     shutil.copytree(src, args.codesdir / item, dirs_exist_ok=True)
+        # else:
+        if not osp.isdir(src):
             shutil.copy2(src, args.codesdir)
     
     return args, cfg
@@ -207,10 +208,10 @@ def train(args, cfg, ddp_gpu=-1):
     
     g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
-    # gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
-    # dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
-    gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=1)
-    dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
+    gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
+    dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
+    # gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=1)
+    # dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
 
     st_step = 1
     if args.resume:
