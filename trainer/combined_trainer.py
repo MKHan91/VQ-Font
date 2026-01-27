@@ -27,7 +27,7 @@ class CombinedTrainer(BaseTrainer):
             self.disc.train()
 
         # loss stats
-        losses = utils.AverageMeters("g_total", "pixel", "disc", "gen","lpips","cross","l1","feat")
+        losses = utils.AverageMeters("g_total", "pixel", "disc", "gen","lpips","cross","l1","feat","style_consist")
         # discriminator stats
         discs = utils.AverageMeters("real_font", "real_uni", "fake_font", "fake_uni")
         # etc stats
