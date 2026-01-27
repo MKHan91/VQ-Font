@@ -204,7 +204,7 @@ class BaseTrainer:
         # g_loss = -(fake_uni.mean() + fake_stru.mean())
         g_loss = -( fake_uni.mean())
         g_loss *= self.cfg['gan_w']
-        self.g_losses['gen'] = g_loss*0.002
+        self.g_losses['gen'] = g_loss*0.01  # 0.002 -> 0.01로 증가
 
         return g_loss
     
@@ -234,7 +234,7 @@ class BaseTrainer:
         d_loss = F.relu(1. - real_uni).mean() + F.relu(1. + fake_uni).mean()
         
         d_loss *= self.cfg['gan_w']
-        self.d_losses['disc'] = d_loss*0.002
+        self.d_losses['disc'] = d_loss*0.01  # 0.002 -> 0.01로 증가
 
         return d_loss
     
@@ -259,6 +259,8 @@ class BaseTrainer:
         with utils.temporary_freeze(self.gen):
             d_loss = sum(self.d_losses.values())
             d_loss.backward()
+            # Gradient clipping for stability
+            torch.nn.utils.clip_grad_norm_(self.disc.parameters(), max_norm=1.0)
 
     def g_backward(self):
         """
@@ -267,6 +269,8 @@ class BaseTrainer:
         with utils.temporary_freeze(self.disc):
             g_loss = sum(self.g_losses.values())
             g_loss.backward()
+            # Gradient clipping for stability
+            torch.nn.utils.clip_grad_norm_(self.gen.parameters(), max_norm=1.0)
 
 
     def save(self, cur_loss, method, save_freq=None):

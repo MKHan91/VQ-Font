@@ -119,10 +119,11 @@ class Generator(nn.Module):
         style_latent_fine = feat_scs_fine['last']
         
 
-        # Style latent Augmentation
-        style_latent_aug = style_latent + 0.05 * torch.randn_like(style_latent)
-        style_latent_crose_aug = style_latent_crose + 0.05 * torch.randn_like(style_latent_crose)
-        style_latent_fine_aug = style_latent_fine + 0.02 * torch.randn_like(style_latent_fine)
+        # Style latent Augmentation - 정규화된 노이즈 강도
+        noise_strength = 0.03  # 낮은 노이즈 강도 (작은 데이터셋에 맞게 조정)
+        style_latent_aug = style_latent + noise_strength * torch.randn_like(style_latent)
+        style_latent_crose_aug = style_latent_crose + noise_strength * torch.randn_like(style_latent_crose)
+        style_latent_fine_aug = style_latent_fine + noise_strength * torch.randn_like(style_latent_fine)
         
         target_size = style_latent_aug.shape[-2:]
         style_latent_crose_aug = F.interpolate(style_latent_crose_aug, size=target_size, mode='bilinear')
@@ -132,16 +133,23 @@ class Generator(nn.Module):
         style_latent_crose_aug = style_latent_crose_aug.type(style_latent.dtype)
         style_latent_fine_aug = style_latent_fine_aug.type(style_latent.dtype)
         
+        # 스케일 간 일관성을 위해 정규화
+        style_latent_aug = F.normalize(style_latent_aug, p=2, dim=1)
+        style_latent_crose_aug = F.normalize(style_latent_crose_aug, p=2, dim=1)
+        style_latent_fine_aug = F.normalize(style_latent_fine_aug, p=2, dim=1)
+        
         comb_style_latent = torch.cat([style_latent_aug,
                                        style_latent_crose_aug,
                                        style_latent_fine_aug], dim=1)
         comb_style_latent = self.style_reducer(comb_style_latent)
+        # Style 출력 정규화로 안정화
+        comb_style_latent = F.normalize(comb_style_latent, p=2, dim=1)
         # ---------------------------------------------------------------
         
         # self.memory.write_comb(style_ids, style_sample_index, feat_scs['last'])
         self.memory.write_comb(style_ids, style_sample_index, comb_style_latent)
 
-        return feat_scs
+        return feat_scs, comb_style_latent
 
 
     def read_memory(self, target_style_ids, trg_sample_index, reset_memory=True,reduction='mean'):

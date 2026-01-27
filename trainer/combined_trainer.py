@@ -2,6 +2,7 @@
 from .base_trainer import BaseTrainer
 import utils
 import json
+import torch.nn.functional as F
 # from basicsr.utils import USMSharp
 def is_main_worker(gpu):
     return (gpu <= 0)
@@ -134,7 +135,7 @@ class CombinedTrainer(BaseTrainer):
                 _ = self.gen.vqgan.decode(quant)
                 # 여기서 style embedding을 만들고 저장.
                 # codebook에서 latent vector를 가져와서 style 특성을 표현.
-                sc_feats = self.gen.encode_write_comb(input_style_ids, 
+                sc_feats, comb_style_latent = self.gen.encode_write_comb(input_style_ids, 
                                                style_sample_index, 
                                                input_imgs, 
                                                input_imgs_crose,
@@ -174,6 +175,14 @@ class CombinedTrainer(BaseTrainer):
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)
                 self.add_lpips_loss_only_mainstructure(out, trg_imgs)
                 self.add_crossentropy_loss(indice_out, info[2], indice_self)
+                
+                # Style consistency loss: 같은 스타일의 multiple scale에서 일관성 보장
+                style_consistency_loss = F.mse_loss(
+                    F.normalize(sc_feats['last'], p=2, dim=1),
+                    F.normalize(torch.nn.functional.adaptive_avg_pool2d(comb_style_latent, sc_feats['last'].shape[-2:]), p=2, dim=1)
+                ) * 0.5
+                self.g_losses['style_consist'] = style_consistency_loss
+                
                 self.g_optim.zero_grad()
                 self.g_backward()
                 self.g_optim.step()
