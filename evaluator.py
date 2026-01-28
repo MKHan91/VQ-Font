@@ -116,6 +116,10 @@ class Evaluator:
                                tag="comparable", 
                                reduction="mean"):
         
+        # 배치 크기 확인 - 안정적인 evaluation을 위해 배치 크기 1 권장
+        if loader.batch_size > 1:
+            self.logger.warning(f"[Warning] Evaluation batch_size={loader.batch_size}. For stable results, consider batch_size=1")
+        
         n_row = loader.dataset.n_uni_per_font * kshot
         compare_batches, metrics = self.infer_loader(gen, loader, kshot, reduction=reduction)
 
@@ -159,6 +163,12 @@ class Evaluator:
             content_imgs_ske    = loader_list[8]
             trg_imgs            = loader_list[9]
             
+            # 디버깅 정보 출력 - 첫 배치에서만
+            if i == 0:
+                self.logger.info(f"[Eval Debug] in_imgs shape: {in_imgs.shape}, content_imgs shape: {content_imgs.shape}")
+                self.logger.info(f"[Eval Debug] in_style_ids shape: {in_style_ids.shape}, trg_style_ids shape: {trg_style_ids.shape}")
+                self.logger.info(f"[Eval Debug] kshot: {kshot}, loader.dataset.n_uni_per_font: {loader.dataset.n_uni_per_font}")
+            
             if self.use_half:
                 in_imgs = in_imgs.half()
                 content_imgs = content_imgs.half()
@@ -184,7 +194,7 @@ class Evaluator:
                     in_stru_ids.append(stru_map[k[i]])
             in_stru_ids = torch.tensor(in_stru_ids).cuda()
             
-            #获取部件信息
+            #获取부件信息
             trg_comp_ids = []
             for i in trg_unis:
                 trg_comp_ids.append(de[i[0]])
@@ -208,6 +218,8 @@ class Evaluator:
             )
 
             batch_size = out.shape[0]
+            if i == 0:
+                self.logger.info(f"[Eval Debug] out shape: {out.shape}, batch_size: {batch_size}")
             out_images = out.detach().cpu().numpy()
             out_duplicate = np.ones((batch_size * kshot, 1, self.size, self.size))
             for idx in range(batch_size):
@@ -216,9 +228,11 @@ class Evaluator:
             outs.append(torch.Tensor(out_duplicate))
 
             for style_img in in_imgs:
-                style_duplicate = np.ones((1, 1, self.size, self.size))
-                style_duplicate[:, :, :, :] = style_img.unsqueeze(1).detach().cpu()
-                styles.append(torch.Tensor(style_duplicate))
+                # 각 스타일 이미지를 kshot만큼 반복하여 그리드 정렬 유지
+                for _ in range(kshot):
+                    style_duplicate = np.ones((1, 1, self.size, self.size))
+                    style_duplicate[:, :, :, :] = style_img.unsqueeze(1).detach().cpu()
+                    styles.append(torch.Tensor(style_duplicate))
             
             # if trg_imgs:
             #     trg_images = trg_imgs[0].detach().cpu().numpy()

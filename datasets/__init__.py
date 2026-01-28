@@ -32,7 +32,7 @@ def get_comb_trn_loader(env, env_get, cfg, train_dict, transform, **kwargs):
     return dset, loader
 
 
-def get_comb_test_loader(env, env_get, target_dict, cfg, avails, transform, ret_targets=True, **kwargs):
+def get_comb_test_loader(env, env_get, target_dict, cfg, avails, transform, ret_targets=True, batch_size=None, **kwargs):
     """
     get_comb_test_loader
     """
@@ -48,7 +48,9 @@ def get_comb_test_loader(env, env_get, target_dict, cfg, avails, transform, ret_
         ret_targets=ret_targets
     )
     
-    loader = DataLoader(dset, batch_size=cfg.batch_size,
+    # batch_size가 명시적으로 지정되지 않으면 cfg.batch_size 사용
+    eval_batch_size = batch_size if batch_size is not None else cfg.batch_size
+    loader = DataLoader(dset, batch_size=eval_batch_size,
                         collate_fn=dset.collate_fn, **kwargs)
 
     return dset, loader
@@ -111,10 +113,11 @@ def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
     # ufsu_dict = {fname: sus for fname in ufs}
     # ufuu_dict = {fname: uus for fname in ufs}
     
-    cv_loaders = {'sfsu': get_comb_test_loader(env, env_get, sfsu_dict, cfg, data_meta['avail'], transform, **kwargs)[1], 
-                  'sfuu': get_comb_test_loader(env, env_get, sfuu_dict, cfg, data_meta['avail'], transform, **kwargs)[1],
-                #   'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, **kwargs)[1],
-                #   'ufuu': get_comb_test_loader(env, env_get, ufuu_dict, cfg, data_meta['avail'], transform, **kwargs)[1]
+    # Evaluation 시 배치 사이즈 1로 설정 (데이터 정렬 일관성 유지)
+    cv_loaders = {'sfsu': get_comb_test_loader(env, env_get, sfsu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1], 
+                  'sfuu': get_comb_test_loader(env, env_get, sfuu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
+                #   'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
+                #   'ufuu': get_comb_test_loader(env, env_get, ufuu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1]
                   }
 
     return cv_loaders
