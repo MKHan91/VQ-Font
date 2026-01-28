@@ -219,28 +219,30 @@ class Evaluator:
 
             batch_size = out.shape[0]
             if i == 0:
-                self.logger.info(f"[Eval Debug] out shape: {out.shape}, batch_size: {batch_size}")
+                self.logger.info(f"[Eval Debug] out shape: {out.shape}, in_imgs shape: {in_imgs.shape}, batch_size: {batch_size}")
+            
+            # 배치 크기가 1일 때: in_imgs는 이미 [kshot, 1, H, W] 형태
+            # Output은 1개만 생성됨 [1, 1, H, W]
             out_images = out.detach().cpu().numpy()
+            # Output을 kshot번 반복하여 Style과 길이 맞추기
             out_duplicate = np.ones((batch_size * kshot, 1, self.size, self.size))
             for idx in range(batch_size):
                 for j in range(kshot):
                     out_duplicate[idx * kshot + j, ...] = out_images[idx, ...]
             outs.append(torch.Tensor(out_duplicate))
 
+            # 스타일 이미지 추가 - 각 스타일은 1번만 (이미 kshot개가 합쳐져 있음)
             for style_img in in_imgs:
-                # 각 스타일 이미지를 kshot만큼 반복하여 그리드 정렬 유지
-                for _ in range(kshot):
-                    style_duplicate = np.ones((1, 1, self.size, self.size))
-                    style_duplicate[:, :, :, :] = style_img.unsqueeze(1).detach().cpu()
-                    styles.append(torch.Tensor(style_duplicate))
+                style_duplicate = np.ones((1, 1, self.size, self.size))
+                style_duplicate[:, :, :, :] = style_img.unsqueeze(0).detach().cpu()
+                styles.append(torch.Tensor(style_duplicate))
             
-            # if trg_imgs:
-            #     trg_images = trg_imgs[0].detach().cpu().numpy()
-            #     trg_duplicate = np.zeros((batch_size * kshot, 1, self.size, self.size))
-            #     for idx in range(batch_size):
-            #         for j in range(kshot):
-            #             trg_duplicate[idx * kshot + j, ...] = trg_images[idx, ...]
-            #     trgs.append(torch.Tensor(trg_duplicate))
+            # Target 이미지 추가 (Ground Truth 비교용) - kshot번 반복
+            if trg_imgs is not None:
+                trg_images = trg_imgs[0].detach().cpu().numpy()  # [1, H, W]
+                # Target도 kshot번 반복하여 길이 일치
+                for _ in range(kshot):
+                    trgs.append(torch.Tensor(trg_images[np.newaxis, ...]))  # [1, 1, H, W]
 
         ret = (torch.cat(outs).float(),)
         if trgs:
