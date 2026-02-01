@@ -96,27 +96,37 @@ def get_fixedref_loader_random(env, env_get, target_dict, ref_unis, cfg, transfo
 
 
 def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
+    """
+    sfs: seen fonts
+    sus: seen unicodes
+    ufs: unseen fonts
+    uus: unseen unicodes
+    """
+    
+    # 보지 못한 폰트에 본 글자가 잘 되는지 보고 싶음.
     n_unis = cfg.cv_n_unis
     n_fonts = cfg.cv_n_fonts
 
     # dictionary에서 몇 개 선택하기
-    # ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
+    ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
     # sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
     # sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
     sfs = uniform_sample(["reference_images_v2"], n_fonts)
     # sfs = sfs * n_fonts
     sus = uniform_sample(data_meta["train"]["reference_images_v2"], n_unis)
-    uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
+    # sus = uniform_sample(data_meta["train"]["reference_images_v2"], None)
+    # uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
+    # uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
     
     sfsu_dict = {fname: sus for fname in sfs}
-    sfuu_dict = {fname: uus for fname in sfs}
-    # ufsu_dict = {fname: sus for fname in ufs}
+    # sfuu_dict = {fname: uus for fname in sfs}
+    ufsu_dict = {fname: sus for fname in ufs}
     # ufuu_dict = {fname: uus for fname in ufs}
     
     # Evaluation 시 배치 사이즈 1로 설정 (데이터 정렬 일관성 유지)
     cv_loaders = {'sfsu': get_comb_test_loader(env, env_get, sfsu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1], 
-                  'sfuu': get_comb_test_loader(env, env_get, sfuu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
-                #   'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
+                #   'sfuu': get_comb_test_loader(env, env_get, sfuu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
+                  'ufsu': get_comb_test_loader(env, env_get, ufsu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1],
                 #   'ufuu': get_comb_test_loader(env, env_get, ufuu_dict, cfg, data_meta['avail'], transform, batch_size=1, **kwargs)[1]
                   }
 
