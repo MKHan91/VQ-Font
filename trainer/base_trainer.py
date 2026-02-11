@@ -204,7 +204,7 @@ class BaseTrainer:
         # g_loss = -(fake_uni.mean() + fake_stru.mean())
         g_loss = -( fake_uni.mean())
         g_loss *= self.cfg['gan_w']
-        self.g_losses['gen'] = g_loss*0.01  # 0.002 -> 0.01로 증가
+        self.g_losses['gen'] = g_loss*0.05  # 0.002 -> 0.01로 증가
 
         return g_loss
     

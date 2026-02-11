@@ -164,6 +164,8 @@ class CombinedTrainer(BaseTrainer):
                 real_font, real_uni, real_stru= self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 fake_font, fake_uni,fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 self.add_gan_d_loss(real_stru, real_uni, fake_stru,fake_uni)
+                # Discriminator 학습 빈도 조절: 2 step마다 학습 (판별자 과도 강화 방지)
+                # if self.step % 2 == 1:  # odd step에만 학습
                 self.d_optim.zero_grad()
                 self.d_backward()
                 self.d_optim.step()
