@@ -208,8 +208,8 @@ def train(args, cfg, ddp_gpu=-1):
     
     g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
-    gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['gamma'])
-    dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['gamma']) if disc is not None else None
+    gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['g_gamma'])
+    dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['d_gamma']) if disc is not None else None
     # gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=1)
     # dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
 
