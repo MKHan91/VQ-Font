@@ -25,8 +25,8 @@ d_lr: 4e-4
 
 step_size: 5000
 # step_size: 1000
-g_gamma: 0.95
-d_gamma: 0.98
+g_gamma: 0.98
+d_gamma: 0.95
 overwrite: False
 adam_betas: [0.0, 0.9]
 
