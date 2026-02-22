@@ -15,6 +15,7 @@ from datasets import (load_lmdb, load_json, read_data_from_lmdb,
                       get_comb_trn_loader, get_cv_comb_loaders)
 
 import os
+import os.path as osp
 # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def getCharList(root):
@@ -23,17 +24,17 @@ def getCharList(root):
     '''
     charlist = []
     for img_path in glob.glob(root + '/*.jpg') + glob.glob(root + '/*.png'):
-        ch = os.path.basename(img_path).split('.')[0]
+        ch = osp.basename(img_path).split('.')[0]
         charlist.append(ch)
     return charlist
 
 
-# 通过reference字体找到能推理的所有的content字体
+# 참조(Reference) 서체를 통해 추론(Inference) 가능한 모든 콘텐츠(Content) 서체를 찾는다.
 def getMetaDict(image_root_list, content_name, cr_mapping):
     meta_dict = dict()
     random_sample_list = []
     for idx, file_path in enumerate(image_root_list):
-        font_name = os.path.basename(file_path)
+        font_name = osp.basename(file_path)
         if font_name == content_name:
             content_path = file_path
             continue
@@ -52,7 +53,16 @@ def getMetaDict(image_root_list, content_name, cr_mapping):
             if len(set.intersection(uni_pair, style_set)) < len(uni_pair):
                 continue
             infer_unis.append(chr(int(uni, 16)))
-
+            
+            # # --- 수정된 안전한 변환 로직 ---
+            # if len(uni) > 1:
+            #     # 'AC00' 같은 16진수 문자열이면 문자로 변환
+            #     infer_unis.append(chr(int(uni, 16)))
+            # else:
+            #     # 이미 '가' 같은 문자라면 그대로 추가
+            #     infer_unis.append(uni)
+            # # ------------------------------
+            
     meta_dict[content_name] = {
         "path": content_path,
         "charlist": None
@@ -82,7 +92,7 @@ def build_dataset4inference(target_img_path, meta_path, content_root, lmdb_path,
     '''
     ### START
     img_path_list = [target_img_path] + [content_root]
-    content_name = os.path.basename(content_root)
+    content_name = osp.basename(content_root)
     build_meta4build_dataset(meta_path, img_path_list, content_name, cr_mapping)
     with open(meta_path) as f:
         fpc_meta = json.load(f)
@@ -100,14 +110,14 @@ def build_testmeta4inference(target_name, target_root, content_name="kaiti_xiant
     '''
     build_testmeta4inference
     '''
-    meta_file = os.path.join(target_root, "dataset_meta.json")
-    save_path = os.path.join(target_root, "test.json")
+    meta_file = osp.join(target_root, "dataset_meta.json")
+    save_path = osp.join(target_root, "test.json")
     avali_set = {}
 
     with open(meta_file, 'r') as fin:
         original_meta = json.load(fin)
     target_ori_unis = original_meta[target_name]
-
+    
     # build test meta file
     test_dict = {
         "gen_fonts": [target_name],
@@ -120,41 +130,41 @@ def build_testmeta4inference(target_name, target_root, content_name="kaiti_xiant
     return save_path, avali_set
 
 
-def eval_ckpt(args, cfg, avail, target_root):
-    '''
-    eval_ckpt
-    '''
+
+def eval_ckpt(args, cfg, target_root, gen):
     logger = Logger.get()
+    
     content_name = cfg.content_name
     trn_transform, val_transform = setup_transforms(cfg)
     env = load_lmdb(cfg.data_path)
     env_get = lambda env, x, y, transform: transform(read_data_from_lmdb(env, f'{x}_{y}')['img'])
+    # env_get = env_get_hex
     test_meta = load_json(args.test_meta)
 
-    g_kwargs = cfg.get('g_args', {})
-    g_cls = generator_dispatch()
-    gen = g_cls(1, cfg['C'], 1, cfg, **g_kwargs)
-    if cfg.use_half:
-        gen.half()
-    gen.cuda()
+    # g_kwargs = cfg.get('g_args', {})
+    # g_cls = generator_dispatch()
+    # gen = g_cls(1, cfg['C'], 1, cfg, **g_kwargs)
+    # if cfg.use_half:
+    #     gen.half()
+    # gen.cuda()
 
-    weight = torch.load(args.weight)
+    # weight = torch.load(args.weight)
 
-    if "generator_ema" in weight:
-        weight = weight["generator_ema"]
-    gen.load_state_dict(weight)
-    logger.info(f"load checkpoint from {args.weight}")
+    # if "generator_ema" in weight:
+    #     weight = weight["generator_ema"]
+    # gen.load_state_dict(weight)
+    # logger.info(f"load checkpoint from {args.weight}")
+    
     writer = None
 
     evaluator = Evaluator(
-        env,
-        env_get,
-        cfg,
-        logger,
-        writer,
-        cfg["batch_size"],
-        val_transform,
-        content_name,
+        env=env,
+        env_get=env_get,
+        cfg=cfg,
+        logger=logger,
+        writer=writer,
+        batch_size=cfg["batch_size"],
+        transform=val_transform,
         use_half=cfg.use_half
     )
 
@@ -179,75 +189,70 @@ def eval_ckpt(args, cfg, avail, target_root):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/VQ-Font/cfgs/custom_infer.yaml"])
-    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/VQ-Font/vq_font_results/checkpoints/vq_font_v1.6/220000-vq_font_v1.6.pdparams")
-    parser.add_argument("--content_font", help="path to content font")
-    parser.add_argument("--img_path", help="path of the your test img directory.", default="/home/dev/VQ-Font/datasets/content_font_image/NanumBarunpenR")
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_infer.yaml"])
+    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/vq_font_results/checkpoints/vq_font_v3.5/410000-vq_font_v3.5.ckpt")
+    parser.add_argument("--content_font", help="path to content font", default="/home/dev/Project/VQ-Font/datasets/content_font_image/NanumBarunpenR")
+    parser.add_argument("--img_path", help="path of the your test img directory.", default="/home/dev/Project/VQ-Font/datasets/train_font_image/reference_images_v2")
     parser.add_argument("--saving_root", help="saving directory.", default="./inference_results/target_style_images")
     args = parser.parse_args()
 
-    cfg = Config(*args.config_paths, default="./cfgs/defaults.yaml")
-    target_folder_all = glob.glob(args.img_path+'/*')
+    cfg = Config(*args.config_paths, default="/home/dev/Project/VQ-Font/cfgs/defaults.yaml")
+    # target_folder_all = glob.glob(args.img_path+'/*')
     
     
-    # g_kwargs = cfg.get('g_args', {})
-    # g_cls = generator_dispatch()
-    # gen = g_cls(1, cfg['C'], 1, cfg, **g_kwargs)
     g_kwargs = cfg.get("g_args", {})
     g_cls = generator_dispatch()
     gen = g_cls(1, cfg.C, 1, cfg, **g_kwargs)
     if cfg.use_half: gen.half()
     gen.cuda()
 
-    import paddle
-    paddle_weights = paddle.load(args.weight)
-    torch_weights = {}
-
-    for k, v in paddle_weights.items():
-        torch_weights[k] = torch.tensor(v.numpy())  # Paddle Tensor → PyTorch Tensor
-
-    torch.save(torch_weights, "220000-vq_font_v1.6.pt")
-
-    weight = torch.load(args.weight)
+    weight = torch.load(args.weight, weights_only=False)
 
     if "generator_ema" in weight:
         weight = weight["generator_ema"]
     gen.load_state_dict(weight)
+    gen.eval()
+    
+    # for target_folder in target_folder_all:
+    content_root = args.content_font
+    saving_root = args.saving_root
+    content_name = osp.basename(content_root)
+    target_name = osp.basename(args.img_path)
+    target_root = osp.join(saving_root, target_name)
+    with open(cfg.content_reference_json, 'r') as f:
+        cr_mapping = json.load(f)
+        
+        # raw_mapping = json.load(f)
+        # # "AC00" 같은 키를 실제 문자 '가'로 변환하여 새로운 딕셔너리 생성
+        # cr_mapping = {}
+        # for k, v in raw_mapping.items():
+        #     if len(k) > 1: # 'AC00' 처럼 16진수 문자열인 경우
+        #         char_key = chr(int(k, 16))
+        #         cr_mapping[char_key] = v
+        #     else: # 이미 '가' 처럼 문자인 경우
+        #         cr_mapping[k] = v
 
-    for target_folder in target_folder_all:
-        content_root = args.content_font
-        saving_root = args.saving_root
-        content_name = os.path.basename(content_root)
-        target_name = os.path.basename(target_folder)
-        target_root = os.path.join(saving_root, target_name)
-        with open(cfg.content_reference_json, 'r') as f:
-            cr_mapping = json.load(f)
+    os.makedirs(target_root, exist_ok=True)
 
-        # create directory to save results
-        os.makedirs(target_root, exist_ok=True)
+    # lmdb directory
+    lmdb_path = osp.join(target_root, "lmdb")
+    # meta file
+    json_path = osp.join(target_root, "dataset_meta.json")
+    meta_path = osp.join(target_root, "ori_dataset_meta.json")
 
-        # lmdb directory
-        lmdb_path = os.path.join(target_root, "lmdb")
-        # if os.path.exists(lmdb_path):
-        #     shutil.rmtree(lmdb_path)
-        # os.makedirs(lmdb_path, exist_ok=True)
+    build_dataset4inference(args.img_path, meta_path, content_root, lmdb_path, json_path, cr_mapping)
 
-        # meta file
-        json_path = os.path.join(target_root, "dataset_meta.json")
-        meta_path = os.path.join(target_root, "ori_dataset_meta.json")
+    ###test.json
+    save_path, avail = build_testmeta4inference(target_name, target_root, content_name)
+    args.test_meta = save_path
 
-        build_dataset4inference(target_folder, meta_path, content_root, lmdb_path, json_path, cr_mapping)
+    cfg.content_name = content_name
+    cfg.data_path = lmdb_path
 
-        ###test.json
-        save_path, avail = build_testmeta4inference(target_name, target_root, content_name)
-        args.test_meta = save_path
+    print("======> Test Params:")
+    print("test meta:", args.test_meta)
+    print("content font:", cfg.content_name)
+    print("lmdb datasets:", cfg.data_path)
 
-        cfg.content_name = content_name
-        cfg.data_path = lmdb_path
-
-        print("======> Test Params:")
-        print("test meta:", args.test_meta)
-        print("content font:", cfg.content_name)
-        print("lmdb datasets:", cfg.data_path)
-
-        eval_ckpt(args, cfg, avail, target_root)
+    with torch.no_grad():
+        eval_ckpt(args, cfg, target_root, gen)

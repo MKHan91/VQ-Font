@@ -368,8 +368,14 @@ class FixedRefDataset(Dataset):
         style_imgs, style_unis = self.sample_pair_style(fname, trg_uni)
         
         fidces = torch.tensor([fidx])
-        trg_dec_uni =torch.tensor([self.to_int(trg_uni)])
-        style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis])
+        
+        # 내가 수정한 부분
+        trg_uni_char = chr(int(trg_uni, 16))
+        style_unis_char = [chr(int(style_uni, 16)) for style_uni in style_unis]
+        # ---------------------------------
+        
+        trg_dec_uni =torch.tensor([self.to_int(trg_uni_char)])
+        style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis_char])
         
         content_img = self.env_get(self.env, self.content_font_name, trg_uni, self.transform)
         ret = (

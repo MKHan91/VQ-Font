@@ -107,7 +107,6 @@ class Evaluator:
                 reduction=reduction,
             )
 
-    @paddle_eval
     def comparable_val_saveimg(self, 
                                gen, 
                                loader, 
@@ -132,7 +131,6 @@ class Evaluator:
     
     
     # region - infer_loader
-    @paddle_eval
     def infer_loader(self, gen, loader, kshot, reduction="mean"):
         outs = []
         trgs = []
@@ -281,7 +279,6 @@ class Evaluator:
 
     
     # region - save each images
-    @paddle_eval
     def save_each_imgs(self, gen, loader, ori_img_root, save_dir, reduction="mean"):
         """
         save_each_imgs
@@ -290,6 +287,7 @@ class Evaluator:
         output_folder = os.path.join(save_dir, "images")
         os.makedirs(output_folder, exist_ok=True)
         ch_list_check = []
+        
         for (in_style_ids,
              in_imgs,
              trg_style_ids,
@@ -302,7 +300,7 @@ class Evaluator:
             if self.use_half:
                 in_imgs = in_imgs.half()
                 content_imgs = content_imgs.half()
-          
+
             trg_unis_bak=trg_unis
             trg_unis = []
             for i in trg_unis_bak:
@@ -312,7 +310,7 @@ class Evaluator:
             for i in trg_unis:
                 in_styles_unis.append(cr_map[i[0]])
 
-            #获取结构信息
+            # 구조 정보를 획득함
             trg_stru_ids = []
             for i in trg_unis:
                 trg_stru_ids.append(stru_map[i[0]])
@@ -323,7 +321,7 @@ class Evaluator:
                     in_stru_ids.append(stru_map[k[i]])
             in_stru_ids = torch.tensor(in_stru_ids).cuda()
             
-            #获取部件信息
+            # 부품 정보를 획득함
             trg_comp_ids = []
             for i in trg_unis:
                 trg_comp_ids.append(de[i[0]])
@@ -333,8 +331,10 @@ class Evaluator:
                     in_comp_ids.append(de[k[i]])
                     
             out, _, A_M,_ ,_= gen.infer(in_style_ids,in_imgs,in_imgs,in_imgs,trg_style_ids,style_sample_index,trg_sample_index,content_imgs,in_stru_ids,trg_stru_ids,reduction=reduction,)
+            
             area1={'仇：人':[69,84,85,100,115,116,131,132,147,148,164,180,196,212]}
             area = {k:v for d in [area1] for k, v in d.items()}
+            
             for idex in range(len(list(area.keys()))):
                 a = []
                 for i in torch.split(A_M, 1, dim=1):
@@ -367,37 +367,37 @@ class Evaluator:
                     ch_list_check.append(ch)
                     cv2.imwrite(dst_path, final_img)
 
-                    # 生成：attention_map 
-                    image,a_m = self.normalize(image),self.normalize(a_m)
-                    image, content_img = image.squeeze(0), content_img.squeeze(0)
-                    in_img = self.normalize(in_img.permute(1,0,2,3))
-                    a_m, in_img = torch.split(a_m.squeeze(0),1,dim=0),torch.split(in_img.squeeze(0),1,dim=0)
-                    a_m, in_img = torch.cat([a_m[i].squeeze(0) for i in range(3)],dim=1),torch.cat([in_img[i].squeeze(0) for i in range(3)],dim=1) 
-                    a_m, in_img = torch.clamp(a_m * 255, min=0, max=255),torch.clamp(in_img * 255, min=0, max=255)
-                    image, content_img = torch.clamp(image * 255, min=0, max=255),torch.clamp(content_img * 255, min=0, max=255)
-                    a_m,  in_img, image, content_img = a_m.cpu().numpy(),in_img.cpu().numpy(),image.cpu().numpy(),content_img.cpu().numpy()
+            #         # 生成：attention_map 
+            #         image,a_m = self.normalize(image),self.normalize(a_m)
+            #         image, content_img = image.squeeze(0), content_img.squeeze(0)
+            #         in_img = self.normalize(in_img.permute(1,0,2,3))
+            #         a_m, in_img = torch.split(a_m.squeeze(0),1,dim=0),torch.split(in_img.squeeze(0),1,dim=0)
+            #         a_m, in_img = torch.cat([a_m[i].squeeze(0) for i in range(3)],dim=1),torch.cat([in_img[i].squeeze(0) for i in range(3)],dim=1) 
+            #         a_m, in_img = torch.clamp(a_m * 255, min=0, max=255),torch.clamp(in_img * 255, min=0, max=255)
+            #         image, content_img = torch.clamp(image * 255, min=0, max=255),torch.clamp(content_img * 255, min=0, max=255)
+            #         a_m,  in_img, image, content_img = a_m.cpu().numpy(),in_img.cpu().numpy(),image.cpu().numpy(),content_img.cpu().numpy()
 
-                    image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
-                    content_img = cv2.cvtColor(content_img,cv2.COLOR_GRAY2RGB)
-                    a_m = cv2.applyColorMap(a_m.astype('uint8'),2)
-                    in_img = cv2.cvtColor(in_img, cv2.COLOR_GRAY2RGB)
-                    a_m = cv2.resize(a_m,(128*3,128))
-                    in_img = cv2.resize(in_img.astype('uint8'),(128*3,128))
-                    img_add = cv2.addWeighted(in_img, 0.3, a_m, 0.7, 0)#0.8 0.6////0.6 0.8
+            #         image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
+            #         content_img = cv2.cvtColor(content_img,cv2.COLOR_GRAY2RGB)
+            #         a_m = cv2.applyColorMap(a_m.astype('uint8'),2)
+            #         in_img = cv2.cvtColor(in_img, cv2.COLOR_GRAY2RGB)
+            #         a_m = cv2.resize(a_m,(128*3,128))
+            #         in_img = cv2.resize(in_img.astype('uint8'),(128*3,128))
+            #         img_add = cv2.addWeighted(in_img, 0.3, a_m, 0.7, 0)#0.8 0.6////0.6 0.8
                     
-                    import numpy as np
-                    gt_img = cv2.imread(os.path.join('/data/yms/datasets/font_png_select/valid_sfuf',output_folder.split('/')[1],ch+'.png'),flags=1)
-                    final_img = np.hstack([content_img,image,img_add,gt_img])
-                    gt_path = output_folder.replace('images','gt_images')
-                    os.makedirs(os.path.join(gt_path), exist_ok=True)
-                    gt_path = os.path.join(gt_path, ch+'.png')
-                    cv2.imwrite(gt_path, gt_img)
-                    b = output_folder.replace('images','attention_map')
-                    os.makedirs(os.path.join(b), exist_ok=True)
-                    b = os.path.join(b, ch+'--'+list(area.keys())[idex] +'.png')
-                    if ch in ['仇'] and ch ==list(area.keys())[idex][:1]:
-                        ch_list_check.append(ch)
-                        cv2.imwrite(b, final_img)
-            print("num_saved_img: ", len(ch_list_check))
+            #         import numpy as np
+            #         gt_img = cv2.imread(os.path.join('/data/yms/datasets/font_png_select/valid_sfuf',output_folder.split('/')[1],ch+'.png'),flags=1)
+            #         final_img = np.hstack([content_img,image,img_add,gt_img])
+            #         gt_path = output_folder.replace('images','gt_images')
+            #         os.makedirs(os.path.join(gt_path), exist_ok=True)
+            #         gt_path = os.path.join(gt_path, ch+'.png')
+            #         cv2.imwrite(gt_path, gt_img)
+            #         b = output_folder.replace('images','attention_map')
+            #         os.makedirs(os.path.join(b), exist_ok=True)
+            #         b = os.path.join(b, ch+'--'+list(area.keys())[idex] +'.png')
+            #         if ch in ['仇'] and ch ==list(area.keys())[idex][:1]:
+            #             ch_list_check.append(ch)
+            #             cv2.imwrite(b, final_img)
+            # print("num_saved_img: ", len(ch_list_check))
         return output_folder
 
