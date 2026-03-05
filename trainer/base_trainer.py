@@ -17,9 +17,6 @@ from taming.modules.discriminator.model import NLayerDiscriminator, weights_init
 
 # region - BaseTrainer
 class BaseTrainer:
-    """
-    BaseTrainer
-    """
     def __init__(self,ddp_gpu, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
                  logger, evaluator, cv_loaders, cfg, writer):
 
@@ -54,7 +51,7 @@ class BaseTrainer:
     def set_model(self, models, opts):
         return models, opts
 
-
+    # region clear_losses
     def clear_losses(self):
         """ Integrate & clear loss json_dict """
         # g losses
@@ -92,6 +89,7 @@ class BaseTrainer:
     def train(self):
         return
     
+    # region - Loss
     def add_l1_loss_only_mainstructure(self, out, target):
         """
         add_pixel_loss
@@ -202,7 +200,7 @@ class BaseTrainer:
             return 0.
 
         # g_loss = -(fake_uni.mean() + fake_stru.mean())
-        g_loss = -( fake_uni.mean())
+        g_loss = -(fake_uni.mean())
         g_loss *= self.cfg['gan_w']
         self.g_losses['gen'] = g_loss*0.05  # 0.002 -> 0.01로 증가
 
@@ -235,6 +233,8 @@ class BaseTrainer:
         
         d_loss *= self.cfg['gan_w']
         self.d_losses['disc'] = d_loss*0.01  # 0.002 -> 0.01로 증가
+        # self.d_losses['disc'] = d_loss*0.1 # 고려해볼 예정
+# 
 
         return d_loss
     

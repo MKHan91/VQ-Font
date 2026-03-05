@@ -26,13 +26,14 @@ class VQModel(pl.LightningModule):
                  ):
         super().__init__()
         self.image_key = image_key
-        #替换成vqvae的encoder
+        
         self.encoder = content_enc_builder(C_in = 1, C = 32, C_out=256)
         self.decoder = dec_builder(C = 32, C_out = 1, norm = "in", out = 'tanh',C_content=256)
         self.loss = instantiate_from_config(lossconfig)
         self.quantize = VectorQuantizer(n_embed, embed_dim, beta=0.25,
                                         remap=remap, sane_index_shape=sane_index_shape)
         self.quant_conv = torch.nn.Conv2d(ddconfig["z_channels"], embed_dim, 1)
+        
         self.post_quant_conv = torch.nn.Conv2d(embed_dim, ddconfig["z_channels"], 1)
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)

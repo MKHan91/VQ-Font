@@ -30,6 +30,11 @@ class CombTrainDataset(Dataset):
         with open(content_reference_json, 'r') as f:
             self.cr_mapping = json.load(f)
         
+        # ----- train_font_dict에서 "reference_images_v2" 제외 -----
+        excluded_fonts = {"reference_images_v2"}
+        train_font_dict = {k: v for k, v in train_font_dict.items() if k not in excluded_fonts}
+        # ----------------------------------------------------------
+        
         self.train_font_dict = train_font_dict
         self.content_chars = sorted(list(self.cr_mapping.keys()))
         self.n_content_chars = len(self.content_chars)
@@ -89,7 +94,7 @@ class CombTrainDataset(Dataset):
         return [intersec_train_uni]
     
     
-            
+        
     def __getitem__(self, index):
         font_idx = index % self.n_fonts
         
@@ -109,7 +114,7 @@ class CombTrainDataset(Dataset):
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
 
-            # augmentation 적용
+            # -------------------- augmentation 적용 --------------------
             style_imgs_aug = []
             style_imgs_ske_aug = []
             for img, ske in zip(style_imgs, style_imgs_ske):
@@ -120,7 +125,9 @@ class CombTrainDataset(Dataset):
                 for _ in range(self.n_aug):
                     style_imgs_aug.append(combined[0:1])
                     style_imgs_ske_aug.append(combined[1:2])
-                    
+            # ----------------------------------------------------------
+            
+            
             style_imgs = torch.cat(style_imgs_aug)
             style_imgs_ske = torch.cat(style_imgs_ske_aug)
             
@@ -143,7 +150,7 @@ class CombTrainDataset(Dataset):
             content_imgs_ske = torch.cat([self.transform(Image.fromarray(img)) for img in content_imgs_ske])
 
             ret = (
-                torch.repeat_interleave(font_idx, len(style_imgs)),
+                torch.repeat_interleave(font_idx, len(style_imgs)), # font_idx의 값을 len(style_imgs)) 번
                 style_imgs,
                 style_imgs_ske,
                 torch.repeat_interleave(font_idx, len(trg_imgs)),

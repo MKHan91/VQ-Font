@@ -46,7 +46,7 @@ d_args:
 pixel_loss_type: l1
 pixel_w: 1
 
-gan_w:  1.0
+gan_w:  1.0 # -> 0.5 고려
 
 # etc
 save: all-last

@@ -10,6 +10,12 @@ from taming.util import get_ckpt_path
 
 class LPIPS(nn.Module):
     # Learned perceptual metric
+    """
+    생성 모델의 성능을 평가할 때 가장 신뢰받는 인간 중심의 유사도 지표
+    즉, 사람의 눈으로 보기에 두 이미지가 얼마나 닮았는지 측정하는 도구
+    구조와 질감이 비슷하니 아주 닮은 사진이라고 말해줌.
+    원래는 낮을 수록 좋음.
+    """
     def __init__(self, use_dropout=True):
         super().__init__()
         self.scaling_layer = ScalingLayer()

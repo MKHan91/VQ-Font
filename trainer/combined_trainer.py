@@ -17,6 +17,7 @@ class CombinedTrainer(BaseTrainer):
         super().__init__(ddp_gpu, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler,
                          logger, evaluator, cv_loaders, cfg, writer)
 
+
     # region - train
     def train(self, loader, st_step=1, max_step=100000):
         self.max_step = max_step
@@ -26,9 +27,7 @@ class CombinedTrainer(BaseTrainer):
         if self.disc is not None:
             self.disc.train()
 
-        # loss stats
         losses = utils.AverageMeters("g_total", "pixel", "disc", "gen","lpips","cross","l1","feat","style_consist")
-        # discriminator stats
         discs = utils.AverageMeters("real_font", "real_uni", "fake_font", "fake_uni")
         # etc stats
         stats = utils.AverageMeters("batch_style", "batch_target")
@@ -64,17 +63,6 @@ class CombinedTrainer(BaseTrainer):
                 trg_style_ids = trg_style_ids.cuda()
                 trg_imgs = trg_imgs.cuda()
                 content_imgs = content_imgs.cuda()
-                
-                # input_styles_unis를 가져오기
-                # input_styles_unis = []
-                # for i in trg_unis:
-                #     input_styles_unis.append(cr_map[i[0]])
-
-                # 타깃 시퀀스에서 각 단위의 구조 정보를 가져와 GPU용 텐서로 변환
-                # trg_stru_ids = []
-                # for i in trg_unis:
-                #     trg_stru_ids.append(stru_map[i[0]])
-                # trg_stru_ids = torch.tensor(trg_stru_ids).cuda()
                 
                 # input_styles_unis를 가져오기
                 input_styles_unis = [cr_map[i[0]] for i in trg_unis]
@@ -127,22 +115,22 @@ class CombinedTrainer(BaseTrainer):
                 # self_infer_imgs, z_e_x_self ,_,z_q_x_self, indice_self= self.gen.infer(trg_style_ids, trg_imgs, trg_imgs_crose, trg_imgs_fine, trg_style_ids, trg_sample_index, trg_sample_index, content_imgs,trg_stru_ids,trg_stru_ids)
                 
                 """
-                codebook lookup(quantization)이 일어남.
-                codebook index를 infor로 return
+                * 학습된 VQ-GAN 모델을 불러와 추출
+                * quantization = codebook lookup
+                * info = codebook index
                 """
                 quant, _, info = self.gen.vqgan.encode(trg_imgs)
                 # 원본 이미지 재구성
                 _ = self.gen.vqgan.decode(quant)
-                # 여기서 style embedding을 만들고 저장.
-                # codebook에서 latent vector를 가져와서 style 특성을 표현.
+                
+                # handwrite 스타일 메모리에 저장
                 sc_feats, comb_style_latent = self.gen.encode_write_comb(input_style_ids, 
-                                               style_sample_index, 
-                                               input_imgs, 
-                                               input_imgs_crose,
-                                               input_imgs_fine,
-                                               in_stru_ids)
-
-                # style이 적용된 content 이미지로서 fake 이미지로 쓰임.
+                                                                         style_sample_index, 
+                                                                         input_imgs, 
+                                                                         input_imgs_crose,
+                                                                         input_imgs_fine,
+                                                                         in_stru_ids)
+                # 저장된 handwrite 스타일을 가져와서 content에 적용해 가짜 이미지 생성
                 out, _, _, _ , indice_out = self.gen.read_decode(trg_style_ids, 
                                                                  trg_sample_index, 
                                                                  content_imgs, 
@@ -175,15 +163,16 @@ class CombinedTrainer(BaseTrainer):
                 fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 self.add_gan_g_loss(real_stru, real_stru, fake_uni, fake_stru)
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)
-                self.add_lpips_loss_only_mainstructure(out, trg_imgs)
+                self.add_lpips_loss_only_mainstructure(out, trg_imgs) # 여기선 trg_imgs가 Uhbee 위주이기 때문에 높아야 좋은 것임
                 self.add_crossentropy_loss(indice_out, info[2], indice_self)
                 
-                # Style consistency loss: 같은 스타일의 multiple scale에서 일관성 보장
+                # ------------ Style consistency loss: 같은 스타일의 multiple scale에서 일관성 보장 ------------
                 style_consistency_loss = F.mse_loss(
                     F.normalize(sc_feats['last'], p=2, dim=1),
                     F.normalize(torch.nn.functional.adaptive_avg_pool2d(comb_style_latent, sc_feats['last'].shape[-2:]), p=2, dim=1)
                 ) * 0.5
                 self.g_losses['style_consist'] = style_consistency_loss
+                # ---------------------------------------------------------------------------------------------
                 
                 self.g_optim.zero_grad()
                 self.g_backward()
@@ -203,12 +192,15 @@ class CombinedTrainer(BaseTrainer):
                     self.writer.add_scalars({"optimization/loss/smooth L1": losses.feat.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/discriminator": losses.disc.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/style_consist": losses.style_consist.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/lpips": losses.lpips.avg}, self.step)
                     
                     self.log(losses, discs, stats)
                     losses.resets()
                     discs.resets()
                     stats.resets()
 
+                # region validation
                 if self.step % self.cfg['val_freq'] == 0:
                     if is_main_worker(self.ddp_gpu):
                         epoch = self.step / len(loader)
@@ -223,7 +215,7 @@ class CombinedTrainer(BaseTrainer):
                         self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
                         
                 # if self.step >= 250000 and self.step % self.cfg['val_freq']==0:     
-                if self.step >= self.cfg.save_freq and self.step % self.cfg['val_freq']==0:     
+                if self.step >= self.cfg.save_freq and self.step % self.cfg['val_freq']==0:
                     self.save(loss_dic['g_total'], self.cfg['save'], self.cfg.get('save_freq', self.cfg['val_freq']))
                     
                 if self.step >= max_step: break

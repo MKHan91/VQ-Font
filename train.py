@@ -46,9 +46,6 @@ def train_ddp(gpu, args, cfg, world_size):
 
 # region - config
 def setup_args_and_config():
-    """
-    setup_args_and_configs
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="vq_font_v3.6")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
@@ -101,9 +98,6 @@ def setup_args_and_config():
             shutil.copy2(osp.join(src, "lmdbutils.py"), args.codesdir/item)
             continue
         
-        # if osp.isdir(src):
-        #     shutil.copytree(src, args.codesdir / item, dirs_exist_ok=True)
-        # else:
         if not osp.isdir(src):
             shutil.copy2(src, args.codesdir)
     
@@ -166,20 +160,8 @@ def train(args, cfg, ddp_gpu=-1):
     g_kwargs = cfg.get("g_args", {})
 
     g_cls = generator_dispatch()
-    gen = g_cls(1, cfg.C, 1, cfg, **g_kwargs)
+    gen = g_cls(C_in=1, C=cfg.C, C_out=1, cfg=cfg, **g_kwargs)
     gen.cuda()
-    
-    # gen.apply(weights_init(cfg.init))
-    
-    # vq = VectorQuantizedVAE(1,256,1024).cuda()
-    # vq.load_state_dict(torch.load('/home/yms/yms/vqfont/pretrained_vq/model_91.pt',map_location={'cuda:4':'cuda:0'}))
-    # for para in vq.parameters():
-    #     para.requires_grad_(False)
-    # gen.component_encoder = vq.encoder
-    # gen.content_encoder = vq.encoder     
-    # gen.codebook = vq.codebook  
-    # gen.decoder = vq.decoder
-    
     
     if cfg.gan_w > 0.:
         d_kwargs = cfg.get("d_args", {})

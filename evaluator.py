@@ -92,9 +92,11 @@ class Evaluator:
         self.loss_fn_vgg = lpips.LPIPS(net='vgg')
         # self.perceptual_loss = LPIPS().eval()
     
+    
+    # region cp_validation
     def cp_validation(self, gen, cv_loaders, step, reduction="mean", ext_tag=""):
         """
-        cp_validation
+        cp: ComParison
         """
 
         for tag, loader in cv_loaders.items():
@@ -249,6 +251,9 @@ class Evaluator:
         ret += (torch.cat(styles).float(),)
         
         # ======================= Metric =======================
+        # ret[0]: generator가 생성된 가짜 이미지
+        # ret[1]: Uhbee 이미지
+        # ret[2]: handwrite 이미지
         psnr = batch_psnr(ret[1],ret[0],data_range=1)
         l1 = F.l1_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean").item()
         Rmse = torch.sqrt(F.mse_loss(ret[1].detach().cpu(), ret[0].detach().cpu(), reduction="mean")).item()
@@ -261,12 +266,12 @@ class Evaluator:
         print(f'L1:{l1:.3f}, RMSE: {Rmse:.3f}, PSNR: {psnr:.3f}, ssim: {ssim:.3f}, lpips_alex: {lpips_alex:.3f}, lpips_vgg: {lpips_vgg:.3f}')
         
         a = {}
-        a['evaluation/error/Rmse']=Rmse
-        a['evaluation/acc/psnr']=psnr
-        a['evaluation/acc/ssim']=ssim
-        a['evaluation/error/l1']=l1
-        a['evaluation/error/lpips_vgg']=lpips_vgg
-        a['evaluation/error/lpips_alex']=lpips_alex
+        a['evaluation/error/Rmse']=Rmse # 여기선 높을 수록 좋음
+        a['evaluation/acc/psnr']=psnr # 여기선 낮을 수록 좋음, PSNR: 생성된 이미지가 원본과 얼마나 똑같은가.
+        a['evaluation/acc/ssim']=ssim # 여기선 낮을 수록 좋음, SSIM: 생성된 이미지가 원본과 얼마나 똑같은가.
+        a['evaluation/error/l1']=l1 # 여기선 높을 수록 좋음
+        a['evaluation/error/lpips_vgg']=lpips_vgg # 여기선 높을 수록 좋음
+        a['evaluation/error/lpips_alex']=lpips_alex # 여기선 높을 수록 좋음
         # =======================================================
         return ret, a
 

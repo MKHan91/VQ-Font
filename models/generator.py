@@ -17,6 +17,8 @@ def instantiate_from_config(config):
     if not "target" in config:
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
+
+
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
 
@@ -36,8 +38,7 @@ class Generator(nn.Module):
         configs = [OmegaConf.load(cfg) for cfg in ['vqgan/custom_vqgan.yaml']]
         config = OmegaConf.merge(*configs, {})
         model = instantiate_from_config(config.model)
-        # model.init_from_ckpt('vqgan/1024_16*16_vaecoder.ckpt')
-        model.init_from_ckpt(config.ckpt_path)
+        model.init_from_ckpt(config.ckpt_path) # VQ-GAN 모델 호출
         
         self.vqgan = model  
         for name,para in self.vqgan.named_parameters():
@@ -84,10 +85,8 @@ class Generator(nn.Module):
         
         self.style_reducer = torch.nn.Conv2d(256*3, 256, kernel_size=1).cuda()
     
+    
     def reset_memory(self):
-        """
-        reset_memory
-        """
         self.memory.reset_memory()
 
 
@@ -1013,9 +1012,20 @@ class Generator(nn.Module):
     
     
     # region - read_decode
-    def read_decode(self, target_style_ids, trg_sample_index, content_imgs, trg_stru_ids,in_stru_ids,reset_memory=True, \
+    def read_decode(self, 
+                    target_style_ids, 
+                    trg_sample_index, 
+                    content_imgs, 
+                    trg_stru_ids,
+                    in_stru_ids,
+                    reset_memory=True,
                     reduction='mean'):
         
+        """
+        * Content (나눔고딕)image로 query 만듦
+        * Target (저장된 스타일을 불러온) image로 key, value 만듦
+        * Content 폰트의 구조에 Target 폰트 스타일을 적용하여 가짜 이미지 만듦
+        """
         key_matrix, value_matrix = self.read_memory(target_style_ids, 
                                                     trg_sample_index, 
                                                     reset_memory, 
@@ -1030,7 +1040,7 @@ class Generator(nn.Module):
         
         
         content_feats = self.content_encoder(content_imgs) #B,C,H,W
-        content_feats = content_feats
+        # content_feats = content_feats
         content_feats_permute = content_feats.transpose(1,2).transpose(2,3) #B,H,W,C
         batch, h, w, channel = content_feats_permute.shape
         d_channel = int(channel / self.num_heads)

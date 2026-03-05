@@ -43,7 +43,7 @@ class Decoder(nn.Module):
         forward
         """
         for i, layer in enumerate(self.layers):
-                x = layer(x)
+            x = layer(x)
 
         return self.out(x)
 
