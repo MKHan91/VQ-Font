@@ -13,6 +13,7 @@ try:
 except ImportError:
     print('failed to import apex')
 from taming.modules.losses.lpips import LPIPS
+from utils.style_losses import StyleLoss
 from taming.modules.discriminator.model import NLayerDiscriminator, weights_init
 
 # region - BaseTrainer
@@ -30,6 +31,11 @@ class BaseTrainer:
         self.d_scheduler = d_scheduler
         self.cfg = cfg
         self.perceptual_loss = LPIPS().eval().cuda()
+        # VGG style loss
+        try:
+            self.style_loss = StyleLoss(device='cuda')
+        except Exception:
+            self.style_loss = None
         self.writer = writer
         
 
@@ -169,6 +175,34 @@ class BaseTrainer:
         # self.g_losses['pixel'] = loss1 
         
         return loss1
+
+    def add_feature_matching_loss(self, real_feats, fake_feats):
+        """Feature matching loss between discriminator intermediate features.
+
+        real_feats and fake_feats are lists of feature maps (corresponding layers).
+        """
+        weight = float(self.cfg.get('fm_w', 1.0))
+
+        loss = 0.0
+        for r, f in zip(real_feats, fake_feats):
+            loss += F.l1_loss(f, r.detach(), reduction='mean')
+
+        loss = loss * weight
+        self.g_losses['fm'] = loss
+        return loss
+
+    def add_style_loss(self, out, target):
+        """Style loss using VGG Gram matrices.
+
+        Requires `self.style_loss` to be initialized.
+        """
+        if self.style_loss is None:
+            return torch.tensor(0.).cuda()
+
+        weight = float(self.cfg.get('style_w', 1.0))
+        loss = self.style_loss(out, target) * weight
+        self.g_losses['style'] = loss
+        return loss
     
     def add_crossentropy_loss_only_mainstructure(self, out, target):
         """

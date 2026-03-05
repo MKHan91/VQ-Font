@@ -48,6 +48,10 @@ pixel_w: 1
 
 gan_w:  1.0 # -> 0.5 고려
 
+# Style and Feature-matching weights
+style_w: 1.0
+fm_w: 1.0
+
 # etc
 save: all-last
 print_freq: 1000

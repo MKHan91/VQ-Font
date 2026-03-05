@@ -149,8 +149,16 @@ class CombinedTrainer(BaseTrainer):
                                                          trg_stru_ids)
                 
                 ################### discriminator ##################
+                # get discriminator outputs
                 real_font, real_uni, real_stru= self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 fake_font, fake_uni,fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
+                # feature extraction for feature-matching
+                try:
+                    real_feats, real_rep = self.disc.extract_features(trg_imgs)
+                    fake_feats, fake_rep = self.disc.extract_features(out.detach())
+                except Exception:
+                    real_feats, fake_feats = None, None
+
                 self.add_gan_d_loss(real_stru, real_uni, fake_stru,fake_uni)
                 # Discriminator 학습 빈도 조절: 2 step마다 학습 (판별자 과도 강화 방지)
                 # if self.step % 2 == 1:  # odd step에만 학습
@@ -162,6 +170,14 @@ class CombinedTrainer(BaseTrainer):
                 ################### generator ##################
                 fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 self.add_gan_g_loss(real_stru, real_stru, fake_uni, fake_stru)
+                # Feature-matching loss (compare discriminator intermediate features)
+                if real_feats is not None and fake_feats is not None:
+                    self.add_feature_matching_loss(real_feats, fake_feats) # 감소해야 좋은 것임.
+                # Style loss (VGG Gram matrix)
+                try:
+                    self.add_style_loss(out, trg_imgs) # 감소해야 좋은 것임.
+                except Exception:
+                    pass
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)
                 self.add_lpips_loss_only_mainstructure(out, trg_imgs) # 여기선 trg_imgs가 Uhbee 위주이기 때문에 높아야 좋은 것임
                 self.add_crossentropy_loss(indice_out, info[2], indice_self)
@@ -194,6 +210,8 @@ class CombinedTrainer(BaseTrainer):
                     self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/style_consist": losses.style_consist.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/lpips": losses.lpips.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/gram style": losses.style.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/feature matching": losses.fm.avg}, self.step)
                     
                     self.log(losses, discs, stats)
                     losses.resets()
@@ -229,8 +247,13 @@ class CombinedTrainer(BaseTrainer):
 
 
     def log(self, losses, discs, stats):
+        # self.logger.info(
+        #     f" Epoch: [{self.epoch:4d}/{self.num_epoch}]  Step: {self.step:7d} "
+        #     f" | cross_entropy: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f},  Feat: {losses.feat.avg:7.4f},  D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
+        #     f" | batch_style: {stats.batch_style.avg:5.1f},  batch_target: {stats.batch_target.avg:5.1f}"
+        #     )
         self.logger.info(
             f" Epoch: [{self.epoch:4d}/{self.num_epoch}]  Step: {self.step:7d} "
-            f" | cross_entropy: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f},  Feat: {losses.feat.avg:7.4f},  D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
+            f" | cross_entropy: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f}, D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
             f" | batch_style: {stats.batch_style.avg:5.1f},  batch_target: {stats.batch_target.avg:5.1f}"
             )

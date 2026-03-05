@@ -266,12 +266,12 @@ class Evaluator:
         print(f'L1:{l1:.3f}, RMSE: {Rmse:.3f}, PSNR: {psnr:.3f}, ssim: {ssim:.3f}, lpips_alex: {lpips_alex:.3f}, lpips_vgg: {lpips_vgg:.3f}')
         
         a = {}
-        a['evaluation/error/Rmse']=Rmse # 여기선 높을 수록 좋음
-        a['evaluation/acc/psnr']=psnr # 여기선 낮을 수록 좋음, PSNR: 생성된 이미지가 원본과 얼마나 똑같은가.
-        a['evaluation/acc/ssim']=ssim # 여기선 낮을 수록 좋음, SSIM: 생성된 이미지가 원본과 얼마나 똑같은가.
-        a['evaluation/error/l1']=l1 # 여기선 높을 수록 좋음
-        a['evaluation/error/lpips_vgg']=lpips_vgg # 여기선 높을 수록 좋음
-        a['evaluation/error/lpips_alex']=lpips_alex # 여기선 높을 수록 좋음
+        a['evaluation/acc/Rmse']=Rmse # 여기선 높을 수록 좋음
+        a['evaluation/error/psnr']=psnr # 여기선 낮을 수록 좋음, PSNR: 생성된 이미지가 원본과 얼마나 똑같은가.
+        a['evaluation/error/ssim']=ssim # 여기선 낮을 수록 좋음, SSIM: 생성된 이미지가 원본과 얼마나 똑같은가.
+        a['evaluation/acc/l1']=l1 # 여기선 높을 수록 좋음
+        a['evaluation/acc/lpips_vgg']=lpips_vgg # 여기선 높을 수록 좋음
+        a['evaluation/acc/lpips_alex']=lpips_alex # 여기선 높을 수록 좋음
         # =======================================================
         return ret, a
 

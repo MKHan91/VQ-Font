@@ -50,6 +50,21 @@ class CustomDiscriminator(nn.Module):
         ret = tuple(map(lambda i: i.cuda(), ret))
         return ret
 
+    def extract_features(self, x):
+        """Return intermediate features from discriminator feature stack.
+
+        Outputs a list of feature maps (in same order as layers are applied).
+        """
+        feats_out = []
+        h = x
+        for layer in self.feats:
+            h = layer(h)
+            feats_out.append(h)
+
+        # also return the representation after gap (before projD)
+        rep = self.gap(h)
+        return feats_out, rep
+
 
 def disc_builder(C, n_fonts, n_chars, activ='relu', gap_activ='relu', w_norm='spectral', weight_init='xavier', 
                  res_scale_var=False):
