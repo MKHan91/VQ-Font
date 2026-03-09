@@ -180,7 +180,7 @@ class CombinedTrainer(BaseTrainer):
 
                 # ------------------------------------------------------------------------------
                 # self.add_feature_matching_loss(real_feats, fake_feats) # 감소해야 좋은 것임.
-                # self.add_style_loss(out, trg_imgs)
+                self.add_style_loss(out, input_imgs)
                 # ------------------------------------------------------------------------------
 
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)

@@ -25,11 +25,11 @@ class VGGFeatureExtractor(nn.Module):
             for p in self.parameters():
                 p.requires_grad = False
 
-        # self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-        # self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
         
     def forward(self, x):
-        # x = (x - self.mean) / self.std
+        x = (x - self.mean) / self.std
         h = x
         h1 = self.slice1(h)
         h2 = self.slice2(h1)
@@ -43,26 +43,36 @@ class StyleLoss(nn.Module):
         super().__init__()
         self.vgg = VGGFeatureExtractor().to(device)
 
-    def forward(self, input_img, target_img):
+    def forward(self, out, input_imgs):
         """Compute style loss between input and target images using Gram matrices.
 
-        input_img and target_img expected in range [0,1] and shape [B, C, H, W].
+        out and input_imgs expected in range [0,1] and shape [B, C, H, W].
         """
+        B = out.shape[0]
+        K = 3
         # VGG expects 3-channel images; if single-channel, repeat
-        if input_img.shape[1] == 1:
-            input_ = input_img.repeat(1, 3, 1, 1)
-            target_ = target_img.repeat(1, 3, 1, 1)
+        if out.shape[1] == 1:
+            out = out.repeat(1, 3, 1, 1)
+            input_imgs = input_imgs.repeat(1, 3, 1, 1)
         else:
-            input_ = input_img
-            target_ = target_img
+            out = out
+            input_imgs = input_imgs
 
-        feats_in = self.vgg(input_)
-        feats_tar = self.vgg(target_)
+        feats_out = self.vgg(out)
+        feats_in = self.vgg(input_imgs)
 
         loss = 0.0
-        for f_in, f_tar in zip(feats_in, feats_tar):
+        for f_out, f_in in zip(feats_out, feats_in):
+            G_out = gram_matrix(f_out)
             G_in = gram_matrix(f_in)
-            G_tar = gram_matrix(f_tar)
-            loss += nn.functional.mse_loss(G_in, G_tar)
+            
+            # k=3 단위로 묶어서 평균 내기
+            # ---------------------------------------
+            C = G_in.shape[1]
+            G_in = G_in.view(B, K, C, C)
+            target_gram_avg = G_in.mean(dim=1)
+            # ---------------------------------------
+            
+            loss += nn.functional.mse_loss(G_out, target_gram_avg)
 
         return loss
