@@ -40,30 +40,36 @@ class CustomDiscriminator(nn.Module):
         self.gap = gap
         self.projD = projD
 
-    def forward(self, x, font_indice, char_indice,stru_indice):
-        for layer in self.feats:
-            x = layer(x)
+    # def forward(self, x, font_indice, char_indice, stru_indice):
+    #     feats_out = []
+    #     for layer in self.feats:
+    #         x = layer(x) # Return intermediate features from discriminator feature stack.
+    #         feats_out.append(x)
+            
+    #     # x = self.gap(x)  # final features
+    #     rep = self.gap(x)  # final features
+    #     #ret = [x, x]
+    #     # ret = self.projD(x, font_indice, char_indice,stru_indice)
+    #     ret = self.projD(rep, font_indice, char_indice,stru_indice)
+    #     ret = tuple(map(lambda i: i.cuda(), ret))
+        
+    #     result_dict = {'feats_out': feats_out, 'rep': rep, 'ret': ret}
+        
+    #     return result_dict
 
+    
+    def forward(self, x, font_indice, char_indice, stru_indice):
+        for layer in self.feats:
+            x = layer(x) # Return intermediate features from discriminator feature stack.
+            
         x = self.gap(x)  # final features
         #ret = [x, x]
         ret = self.projD(x, font_indice, char_indice,stru_indice)
         ret = tuple(map(lambda i: i.cuda(), ret))
-        return ret
-
-    def extract_features(self, x):
-        """Return intermediate features from discriminator feature stack.
-
-        Outputs a list of feature maps (in same order as layers are applied).
-        """
-        feats_out = []
-        h = x
-        for layer in self.feats:
-            h = layer(h)
-            feats_out.append(h)
-
-        # also return the representation after gap (before projD)
-        rep = self.gap(h)
-        return feats_out, rep
+        
+        result_dict = {'ret': ret}
+        
+        return result_dict
 
 
 def disc_builder(C, n_fonts, n_chars, activ='relu', gap_activ='relu', w_norm='spectral', weight_init='xavier', 

@@ -27,7 +27,7 @@ class CombinedTrainer(BaseTrainer):
         if self.disc is not None:
             self.disc.train()
 
-        losses = utils.AverageMeters("g_total", "pixel", "disc", "gen","lpips","cross","l1","feat","style_consist")
+        losses = utils.AverageMeters("g_total", "pixel", "disc", "gen","lpips","cross","l1","feat","style_consist","lpips","style","fm")
         discs = utils.AverageMeters("real_font", "real_uni", "fake_font", "fake_uni")
         # etc stats
         stats = utils.AverageMeters("batch_style", "batch_target")
@@ -150,34 +150,39 @@ class CombinedTrainer(BaseTrainer):
                 
                 ################### discriminator ##################
                 # get discriminator outputs
-                real_font, real_uni, real_stru= self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
-                fake_font, fake_uni,fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
                 # feature extraction for feature-matching
-                try:
-                    real_feats, real_rep = self.disc.extract_features(trg_imgs)
-                    fake_feats, fake_rep = self.disc.extract_features(out.detach())
-                except Exception:
-                    real_feats, fake_feats = None, None
-
-                self.add_gan_d_loss(real_stru, real_uni, fake_stru,fake_uni)
+                # real_font, real_uni, real_stru = self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
+                # fake_font, fake_uni, fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
+                result_real = self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                real_font, real_uni, real_stru  = result_real['ret']
+                # real_feats, real_rep            = result_real['feats_out'], result_real['rep']
+                
+                # [D 학습용]
+                result_fake = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                fake_font, fake_uni, fake_stru  = result_fake['ret']
+                # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
+                
+                self.add_gan_d_loss(real_stru, real_uni, fake_stru, fake_uni)
                 # Discriminator 학습 빈도 조절: 2 step마다 학습 (판별자 과도 강화 방지)
-                # if self.step % 2 == 1:  # odd step에만 학습
+                # if self.step % 2 == 1:
                 self.d_optim.zero_grad()
                 self.d_backward()
                 self.d_optim.step()
                 self.d_scheduler.step()
 
                 ################### generator ##################
-                fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
+                # fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                # [G 학습용]
+                result_fake = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                fake_font, fake_uni, fake_stru  = result_fake['ret']
+                # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
                 self.add_gan_g_loss(real_stru, real_stru, fake_uni, fake_stru)
-                # Feature-matching loss (compare discriminator intermediate features)
-                if real_feats is not None and fake_feats is not None:
-                    self.add_feature_matching_loss(real_feats, fake_feats) # 감소해야 좋은 것임.
-                # Style loss (VGG Gram matrix)
-                try:
-                    self.add_style_loss(out, trg_imgs) # 감소해야 좋은 것임.
-                except Exception:
-                    pass
+
+                # ------------------------------------------------------------------------------
+                # self.add_feature_matching_loss(real_feats, fake_feats) # 감소해야 좋은 것임.
+                # self.add_style_loss(out, trg_imgs)
+                # ------------------------------------------------------------------------------
+
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)
                 self.add_lpips_loss_only_mainstructure(out, trg_imgs) # 여기선 trg_imgs가 Uhbee 위주이기 때문에 높아야 좋은 것임
                 self.add_crossentropy_loss(indice_out, info[2], indice_self)
@@ -186,7 +191,7 @@ class CombinedTrainer(BaseTrainer):
                 style_consistency_loss = F.mse_loss(
                     F.normalize(sc_feats['last'], p=2, dim=1),
                     F.normalize(torch.nn.functional.adaptive_avg_pool2d(comb_style_latent, sc_feats['last'].shape[-2:]), p=2, dim=1)
-                ) * 0.5
+                ) * 0.8
                 self.g_losses['style_consist'] = style_consistency_loss
                 # ---------------------------------------------------------------------------------------------
                 
@@ -199,8 +204,8 @@ class CombinedTrainer(BaseTrainer):
 
                 # EMA g
                 self.accum_g()
-                if self.step % self.cfg['tb_freq'] == 0:
-                    tag_scalar_dic = self.baseplot(losses, discs, stats)
+                # if self.step % self.cfg['tb_freq'] == 0:
+                #     tag_scalar_dic = self.baseplot(losses, discs, stats)
 
                 if self.step % self.cfg['print_freq'] == 0:
                     self.writer.add_scalars({"optimization/loss/cross entropy": losses.cross.avg}, self.step)
@@ -210,8 +215,8 @@ class CombinedTrainer(BaseTrainer):
                     self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/style_consist": losses.style_consist.avg}, self.step)
                     self.writer.add_scalars({"optimization/loss/lpips": losses.lpips.avg}, self.step)
-                    self.writer.add_scalars({"optimization/loss/gram style": losses.style.avg}, self.step)
-                    self.writer.add_scalars({"optimization/loss/feature matching": losses.fm.avg}, self.step)
+                    # self.writer.add_scalars({"optimization/loss/gram style": losses.style.avg}, self.step)
+                    # self.writer.add_scalars({"optimization/loss/feature matching": losses.fm.avg}, self.step)
                     
                     self.log(losses, discs, stats)
                     losses.resets()

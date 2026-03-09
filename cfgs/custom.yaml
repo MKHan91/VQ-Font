@@ -16,6 +16,7 @@ num_heads: 8
 kshot: 3
 
 batch_size: 32
+# batch_size: 16
 n_workers: 0
 iter: 1500001
 g_lr: 2e-4

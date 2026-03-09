@@ -176,6 +176,8 @@ class BaseTrainer:
         
         return loss1
 
+    
+    # region fm loss
     def add_feature_matching_loss(self, real_feats, fake_feats):
         """Feature matching loss between discriminator intermediate features.
 
@@ -191,6 +193,8 @@ class BaseTrainer:
         self.g_losses['fm'] = loss
         return loss
 
+    
+    # region gram style loss
     def add_style_loss(self, out, target):
         """Style loss using VGG Gram matrices.
 
@@ -203,6 +207,8 @@ class BaseTrainer:
         loss = self.style_loss(out, target) * weight
         self.g_losses['style'] = loss
         return loss
+    
+    
     
     def add_crossentropy_loss_only_mainstructure(self, out, target):
         """

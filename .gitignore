@@ -14,3 +14,4 @@ vq_font_results
 __pycache__
 datasets/handwrite_dataset_v2
 taming/experiments
+*.png

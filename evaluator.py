@@ -273,6 +273,7 @@ class Evaluator:
         a['evaluation/acc/lpips_vgg']=lpips_vgg # 여기선 높을 수록 좋음
         a['evaluation/acc/lpips_alex']=lpips_alex # 여기선 높을 수록 좋음
         # =======================================================
+        
         return ret, a
 
     def normalize(self, tensor, eps=1e-5):
