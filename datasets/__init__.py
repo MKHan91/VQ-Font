@@ -111,12 +111,12 @@ def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
     ufs = uniform_sample(data_meta["valid"]["unseen_fonts"], n_fonts)
     # sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
     # sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
-    sfs = uniform_sample(["reference_images_v2"], n_fonts)
+    # sfs = uniform_sample(["reference_images_v2"], n_fonts)
     # sfs = sfs * n_fonts
-    sus = uniform_sample(data_meta["train"]["reference_images_v2"], n_unis)
+    # sus = uniform_sample(data_meta["train"]["reference_images_v2"], n_unis)
     # sus = uniform_sample(data_meta["train"]["reference_images_v2"], None)
-    # uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
-    # uus = uniform_sample(data_meta["valid"]["unseen_unis"], n_unis)
+    sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
+    sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis)
     
     sfsu_dict = {fname: sus for fname in sfs}
     # sfuu_dict = {fname: uus for fname in sfs}

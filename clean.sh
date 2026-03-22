@@ -5,7 +5,7 @@ codes_dir="/home/dev/Project/VQ-Font/vq_font_results/codes"
 logs_dir="/home/dev/Project/VQ-Font/vq_font_results/logs"
 models_dir="/home/dev/Project/VQ-Font/vq_font_results/runs"
 
-model_name="vq_font_3.10"
+model_name="vq_font_v3.7"
 rm -rf ${backups_dir}/${model_name}
 rm -rf ${codes_dir}/${model_name}
 rm -rf ${logs_dir}/${model_name}

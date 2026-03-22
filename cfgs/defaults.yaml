@@ -9,11 +9,11 @@ n_workers: 0
 adam_betas: [0.0, 0.9]
 init: kaiming
 
-content_font: "NanumBarunpenR"
+# content_font: "NanumBarunpenR"
 language: "kor"
 
-data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb
-data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json
+# data_path: /home/dev/VQ-Font/datasets/handwrite_dataset/lmdb
+# data_meta: /home/dev/VQ-Font/datasets/handwrite_dataset/meta/train.json
 
 dset_aug:
   normalize: True
@@ -47,14 +47,12 @@ pixel_loss_type: l1
 pixel_w: 1
 
 gan_w:  1.0 # -> 0.5 고려
-
-# Style and Feature-matching weights
-style_w: 1.0
+style_w: 5.0
 fm_w: 1.0
 
 # etc
 save: all-last
-print_freq: 1000
-val_freq: 10000
-save_freq: 50000
-tb_freq: 10
+# print_freq: 5000
+# tb_freq: 5000
+# val_freq: 5000
+# save_freq: 50000

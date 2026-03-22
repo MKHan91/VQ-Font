@@ -54,6 +54,7 @@ def generate_de_json(output_path='de.json'):
                 cho_idx,           # 초성: 0-18
                 jung_idx + 19,     # 중성: 19-39
                 jong_idx + 47      # 종성: 47-74
+                # jong_idx + 40   # 40~67 (28개)
             ]
             
             # 16진수 문자열로 키 생성 (대문자, 0x 제외)
@@ -119,16 +120,16 @@ def verify_de_json(json_path='de.json'):
 
 
 if __name__ == "__main__":
-    train_data_dir = "/home/dev/Project/VQ-Font/datasets/train_font_image"
+    # train_data_dir = "/home/dev/Project/VQ-Font/datasets/train_font_image"
     
-    train_names = []
-    for folderName in os.listdir(train_data_dir):
-        if folderName == "reference_images": continue
+    # train_names = []
+    # for folderName in os.listdir(train_data_dir):
+    #     if folderName == "reference_images": continue
         
-        for fileName in os.listdir(osp.join(train_data_dir, folderName)):
-            train_names.append(fileName.split('.')[0])
+    #     for fileName in os.listdir(osp.join(train_data_dir, folderName)):
+    #         train_names.append(fileName.split('.')[0])
     
-    train_chars = list(set(train_names))
+    # train_chars = list(set(train_names))
     
     # de.json 생성
     generate_de_json('./build_dataset/de_v2.json')

@@ -46,10 +46,6 @@ class CombTrainDataset(Dataset):
         print ('#'*30 + f' number of content_chars: {self.n_content_chars} ' + '#'*30)
         print ('#'*30 + f' number of train fonts: {self.n_fonts} ' + '#'*30)
         
-        # self.augment = T.Compose([T.RandomRotation(10),        # -10 ~ +10도 회전
-        #                         #   T.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 스케일 변환
-        #                           T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-        #                           T.RandomHorizontalFlip()])
         self.augment = T.Compose([
             T.RandomApply([T.RandomAffine(degrees=10, 
                                           translate=(0.1,0.1), 
@@ -107,9 +103,8 @@ class CombTrainDataset(Dataset):
         while True:
             intersec_train_uni = self.get_random_trg(train_unis)
             """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
-            # style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
-            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images", intersec_train_uni, train_unis)
-            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
+            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
             if style_imgs is None: 
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
@@ -256,8 +251,8 @@ class CombTestDataset(Dataset):
                 imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
                 
             b = [self.transform(Image.fromarray(img)) for img in imgs_ske]
-            # a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
-            a = [self.env_get(self.env, "reference_images_v2", uni, self.transform) for uni in style_unis]
+            a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
+            # a = [self.env_get(self.env, "reference_images_v2", uni, self.transform) for uni in style_unis]
             
         except:
             print (font_name, style_unis)
@@ -377,9 +372,10 @@ class FixedRefDataset(Dataset):
         fidces = torch.tensor([fidx])
         
         # 내가 수정한 부분
+        # --------------------------------------------------------------------------------
         trg_uni_char = chr(int(trg_uni, 16))
         style_unis_char = [chr(int(style_uni, 16)) for style_uni in style_unis]
-        # ---------------------------------
+        # --------------------------------------------------------------------------------
         
         trg_dec_uni =torch.tensor([self.to_int(trg_uni_char)])
         style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis_char])

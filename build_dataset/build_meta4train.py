@@ -147,7 +147,7 @@ def build_train_meta(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--saving_dir", help="directory where your lmdb file will be saved",
-                        default='/home/dev/Project/VQ-Font/datasets/handwrite_dataset_v2')
+                        default='/home/dev/Project/VQ-Font/datasets/handwrite_dataset_v3')
     parser.add_argument("--content_font", help="root path of the content font images",
                         default='/home/dev/Project/VQ-Font/datasets/content_font_image/NanumBarunpenR')
     parser.add_argument("--train_font_dir", help="root path of the training font images",
@@ -155,14 +155,14 @@ if __name__ == "__main__":
     parser.add_argument("--val_font_dir", help="root path of the validation font images",
                         default='/home/dev/Project/VQ-Font/datasets/valid_font_image')
     parser.add_argument("--seen_unis_file", help="json file of seen characters",
-                        default="/home/dev/Project/VQ-Font/build_dataset/train_unis_v2.json")
+                        default="/home/dev/Project/VQ-Font/build_dataset/train_unis_v3.json")
     parser.add_argument("--unseen_unis_file", help="json file of unseen characters",
-                        default="/home/dev/Project/VQ-Font/build_dataset/val_unis_v2.json")
+                        default="/home/dev/Project/VQ-Font/build_dataset/val_unis_v3.json")
     args = parser.parse_args()
     
-    trainset_dict = 'trainset_dict.json'
-    trainset_ori_meta = 'trainset_ori_meta.json'
-    train_json = 'train.json'
+    trainset_dict = 'trainset_dict'
+    trainset_ori_meta = 'trainset_ori_meta'
+    train_json = 'train'
 
 
     build_meta4train_lmdb(args)

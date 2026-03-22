@@ -102,6 +102,7 @@ class BaseTrainer:
         """
         loss1 = F.l1_loss(out, target, reduction="mean")
         self.g_losses['l1'] = loss1*2
+        # self.g_losses['l1'] = loss1 * 0.1
               
         return loss1 
     
@@ -111,6 +112,7 @@ class BaseTrainer:
         self.g_losses['lpips'] = torch.mean(p_loss)
         
         return torch.mean(p_loss)
+        # return torch.mean(p_loss) * 0.5
 
     def add_l1_loss(self, out, target,self_infer):
         """
@@ -243,6 +245,7 @@ class BaseTrainer:
         g_loss = -(fake_uni.mean())
         g_loss *= self.cfg['gan_w']
         self.g_losses['gen'] = g_loss*0.05  # 0.002 -> 0.01로 증가
+        # self.g_losses['gen'] = g_loss*0.1  # 0.002 -> 0.01로 증가
 
         return g_loss
     
@@ -274,7 +277,6 @@ class BaseTrainer:
         d_loss *= self.cfg['gan_w']
         self.d_losses['disc'] = d_loss*0.01  # 0.002 -> 0.01로 증가
         # self.d_losses['disc'] = d_loss*0.1 # 고려해볼 예정
-# 
 
         return d_loss
     

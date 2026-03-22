@@ -6,6 +6,8 @@ datasets/train_font_ttf
 datasets/valid_font_image
 datasets/valid_font_ttf
 datasets/__pycache__
+datasets/additional_train_font_ttf
+datasets/handwrite_dataset_v3
 logs/
 *.pyc
 *.tar.gz
