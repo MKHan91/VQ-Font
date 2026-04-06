@@ -15,7 +15,7 @@ from transform import setup_transforms
 from models import generator_dispatch, disc_builder
 from datasets import (load_lmdb, load_json, read_data_from_lmdb,
                       get_comb_trn_loader, get_cv_comb_loaders)
-from trainer import load_checkpoint_torch, CombinedTrainer
+from trainer import load_checkpoint, load_checkpoint_torch, CombinedTrainer
 from evaluator import Evaluator
 from models.modules import weights_init
 import torch.distributed as dist
@@ -50,8 +50,10 @@ def train_ddp(gpu, args, cfg, world_size):
 def setup_args_and_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="vq_font_v4.0")
+    # parser.add_argument("--name", default="test")
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
-    parser.add_argument("--resume", default="/home/dev/Project/VQ-Font/taming/experiments/checkpoints/2026-01-11T10-58-28_custom_vqgan/epoch=000781.ckpt")
+    parser.add_argument("--vq_gan_resume", default="/home/dev/Project/VQ-Font/taming/experiments/checkpoints/2026-01-11T10-58-28_custom_vqgan/epoch=000781.ckpt")
+    parser.add_argument("--vq_font_resume", default="")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()
@@ -198,16 +200,24 @@ def train(args, cfg, ddp_gpu=-1):
     # dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
 
     st_step = 1
-    if args.resume:
-        # st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
-        st_step, loss = load_checkpoint_torch(args.resume, gen, disc)
+    # if args.resume:
+    if args.vq_font_resume:
+        st_step, loss = load_checkpoint(args.vq_font_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, device=device)
         loss = f"{loss:7.3f}" if loss is not None else "N/A"
-        logger.info(f"Resumed checkpoint from {args.resume} (Step {st_step-1}, Loss {loss})" )
+        logger.info(f"Resumed checkpoint from {args.vq_font_resume} (Step {st_step-1}, Loss {loss})" )
         
-        if cfg.overwrite:
-            st_step = 1
-        else:
-            pass
+    else:
+        if args.vq_gan_resume:
+            # st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
+            st_step, loss = load_checkpoint(args.vq_gan_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, 
+                                            device=device, load_codebook_only=True)
+            loss = f"{loss:7.3f}" if loss is not None else "N/A"
+            logger.info(f"Resumed checkpoint from {args.vq_gan_resume} (Step {st_step-1}, Loss {loss})" )
+            
+            if cfg.overwrite:
+                st_step = 1
+            else:
+                pass
 
     evaluator = Evaluator(env,
                           env_get,
@@ -238,4 +248,5 @@ def main():
 
 
 if __name__ == "__main__":
+    device = 'cuda' if torch.cuda.is_available else 'cpu'
     main()

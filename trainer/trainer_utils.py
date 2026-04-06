@@ -4,34 +4,50 @@ import torch
 from collections import OrderedDict
 
 
-def load_checkpoint(path, gen, disc, g_optim, d_optim, g_scheduler, d_scheduler):
+def load_checkpoint(path, gen, g_optim, g_scheduler, disc, d_optim, d_scheduler, device, load_codebook_only=False):
     """
     load_checkpoint
     """
-    ckpt = torch.load(path,map_location={'cuda:1': 'cuda:0'})
-    gen.load_state_dict(ckpt['generator'])
-    g_optim.load_state_dict(ckpt['optimizer_states'])
-    g_scheduler.load_state_dict(ckpt['g_scheduler'])
-
-    if disc is not None:
+    # ckpt = torch.load(path,map_location={'cuda:1': 'cuda:0'})
+    ckpt = torch.load(path, map_location=device, weights_only=False)
+    if load_codebook_only:
+        state_dict = ckpt.get("state_dict", ckpt)  # Lightning ckpt와 일반 ckpt 모두 지원
+        gen.load_state_dict({k.replace("generator.", ""): v for k, v in state_dict.items() if k.startswith("generator.")}, strict=False)
+        print("✅ Full generator weights loaded.")
+        
+        disc_keys = [k for k in state_dict.keys() if k.startswith("discriminator.")]
+        dt = OrderedDict()
+        for k in disc_keys:
+            dt[k.replace("discriminator.", "")] = state_dict[k]
+        disc.load_state_dict(dt, strict=False)
+        print("✅ Discriminator weights loaded.")
+        
+        st_epoch = ckpt.get('epoch', 0) + 1
+        loss = ckpt.get('loss', None)
+        
+    else:
+        gen.load_state_dict(ckpt['generator'])
+        g_optim.load_state_dict(ckpt['optimizer'])
+        g_scheduler.load_state_dict(ckpt['g_scheduler'])
+    
         disc.load_state_dict(ckpt['discriminator'])
         d_optim.load_state_dict(ckpt['d_optimizer'])
         d_scheduler.load_state_dict(ckpt['d_scheduler'])
-
-    st_epoch = ckpt['epoch'] + 1
-    loss = ckpt['loss']
+        
+        st_epoch = ckpt['epoch'] + 1
+        loss = ckpt['loss']
 
     return st_epoch, loss
 
 
-def load_checkpoint_torch(ckpt_path, gen, disc, load_codebook_only=False):
+def load_checkpoint_torch(ckpt_path, gen, disc, device='cpu', load_codebook_only=False):
     """
     PyTorch ckpt 로드용
     - gen: vq-font generator
     - disc: discriminator (optional)
     - load_codebook_only: True면 generator의 codebook만 로드
     """
-    ckpt = torch.load(ckpt_path, map_location='cpu')
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     state_dict = ckpt.get("state_dict", ckpt)  # Lightning ckpt와 일반 ckpt 모두 지원
 
     if load_codebook_only:

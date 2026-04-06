@@ -20,7 +20,7 @@ class CombinedTrainer(BaseTrainer):
 
     # region - train
     def train(self, loader, st_step=1, max_step=100000):
-        self.st_step = st_step
+        self.step = st_step
         
         self.gen.train()
         if self.disc is not None:
@@ -45,7 +45,7 @@ class CombinedTrainer(BaseTrainer):
         # while True:
         self.logger.info("Start training ...")
         for epoch in range(num_epoch):
-            for step, (input_style_ids, input_imgs, input_imgs_ske,
+            for _iter, (input_style_ids, input_imgs, input_imgs_ske,
                  trg_style_ids, trg_uni_ids, trg_imgs, 
                  content_imgs, content_imgs_ske, 
                  trg_unis, style_sample_index, trg_sample_index) in enumerate(loader):
@@ -209,20 +209,20 @@ class CombinedTrainer(BaseTrainer):
                 #     tag_scalar_dic = self.baseplot(losses, discs, stats)
 
                 # if self.step % self.cfg['print_freq'] == 0:
-                if self.st_step % self.cfg['tb_freq'] == 0:
-                    self.writer.add_scalars({"optimization/loss/cross entropy": losses.cross.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/L1": losses.l1.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/smooth L1": losses.feat.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/discriminator": losses.disc.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/style_consist": losses.style_consist.avg}, self.st_step)
-                    self.writer.add_scalars({"optimization/loss/lpips": losses.lpips.avg}, self.st_step)
-                    # self.writer.add_scalars({"optimization/loss/gram style": losses.style.avg}, self.st_step)
-                    # self.writer.add_scalars({"optimization/loss/feature matching": losses.fm.avg}, self.st_step)
+                if self.step % self.cfg['tb_freq'] == 0:
+                    self.writer.add_scalars({"optimization/loss/cross entropy": losses.cross.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/L1": losses.l1.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/smooth L1": losses.feat.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/discriminator": losses.disc.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/generator": losses.gen.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/style_consist": losses.style_consist.avg}, self.step)
+                    self.writer.add_scalars({"optimization/loss/lpips": losses.lpips.avg}, self.step)
+                    # self.writer.add_scalars({"optimization/loss/gram style": losses.style.avg}, self.step)
+                    # self.writer.add_scalars({"optimization/loss/feature matching": losses.fm.avg}, self.step)
                 
                 # self.log(losses, discs, stats)
                 self.logger.info(
-                    f" Epoch: [{epoch:4d}/{num_epoch}]  Step: [{step:7d}]/[{steps_per_epoch}]/[{self.st_step}]/[{max_step}] "
+                    f" Epoch: [{epoch:4d}/{num_epoch}]  Step: [{_iter:7d}]/[{steps_per_epoch}]/[{self.step}]/[{max_step}] "
                     f" | cross_entropy: {losses.cross.avg:7.4f},  L1: {losses.l1.avg:7.4f},  Lpips: {losses.lpips.avg:7.4f}, D: {losses.disc.avg:7.3f},  G: {losses.gen.avg:7.3f}"
                     f" | batch_style: {stats.batch_style.avg:5.1f},  batch_target: {stats.batch_target.avg:5.1f}"
                     )
@@ -233,23 +233,23 @@ class CombinedTrainer(BaseTrainer):
                 
                 # region validation
                 # ------------------------------------------------------------------------------------------------------------------
-                if self.st_step % self.cfg['val_freq'] == 0:
+                if self.step % self.cfg['val_freq'] == 0:
                 #     if is_main_worker(self.ddp_gpu):
                     self.logger.info(f"Validation at Epoch = {epoch:.3f}")
-                    self.evaluator.cp_validation(self.gen_ema, self.cv_loaders, self.st_step)
+                    self.evaluator.cp_validation(self.gen_ema, self.cv_loaders, self.step)
                     
                     rnd_idx = torch.randint(low=0, high=trg_imgs.shape[0], size=(1, ))
-                    self.writer.add_image("training/VQGAN input image", trg_imgs[rnd_idx].squeeze(0), self.st_step)
-                    self.writer.add_image("training/styled content image", out[rnd_idx].squeeze(0), self.st_step)
+                    self.writer.add_image("training/VQGAN input image", trg_imgs[rnd_idx].squeeze(0), self.step)
+                    self.writer.add_image("training/styled content image", out[rnd_idx].squeeze(0), self.step)
                     
-                    self.writer.add_scalars({"optimization/learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.st_step)
-                    self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.st_step)
+                    self.writer.add_scalars({"optimization/learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.step)
+                    self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
                             
-                    if (self.st_step >= self.cfg.save_freq) and (self.st_step % self.cfg['val_freq']==0):
+                    if (self.step >= self.cfg.save_freq) and (self.step % self.cfg['val_freq']==0):
                         self.save(loss_dic['g_total'], self.cfg['save'], self.cfg.get('save_freq', self.cfg['val_freq']))
                 # ------------------------------------------------------------------------------------------------------------------
 
-                self.st_step += 1
+                self.step += 1
                 # self.step += 1
                 # if self.step >= max_step: break
                 # self.step += 1
