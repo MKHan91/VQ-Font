@@ -49,11 +49,12 @@ def train_ddp(gpu, args, cfg, world_size):
 # region - config
 def setup_args_and_config():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default="vq_font_v4.0")
-    # parser.add_argument("--name", default="test")
-    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
+    # parser.add_argument("--name", default="vq_font_v4.0")
+    parser.add_argument("--name", default="brush_finetune_v1")
+    # parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_finetune.yaml"])
     parser.add_argument("--vq_gan_resume", default="/home/dev/Project/VQ-Font/taming/experiments/checkpoints/2026-01-11T10-58-28_custom_vqgan/epoch=000781.ckpt")
-    parser.add_argument("--vq_font_resume", default="")
+    parser.add_argument("--vq_font_resume", default="./vq_font_results/checkpoints/vq_font_v4.0/last.ckpt")
     parser.add_argument("--use_unique_name", default=False, action="store_true", help="whether to use name with timestamp")
 
     args, left_argv = parser.parse_known_args()
@@ -192,7 +193,23 @@ def train(args, cfg, ddp_gpu=-1):
     else:
         disc = None
     
-    g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
+    
+    # # ✅ 2단계: train.py에서 Generator 로드 후 추가
+    # for name, param in gen.named_parameters():
+    #     if 'component_encoder' in name or 'content_encoder' in name:
+    #         param.requires_grad_(False)  # 인코더 고정
+    #     if 'former' in name or 'mlp_head' in name or 'vqgan.decoder' in name:
+    #         param.requires_grad_(True)   # 디코더/트랜스포머만 학습
+    
+    for name, param in gen.named_parameters():
+        if 'component_encoder' in name or 'content_encoder' in name:
+            param.requires_grad_(False)
+        else:
+            param.requires_grad_(True)
+
+    g_optim = optim.Adam(filter(lambda p: p.requires_grad, gen.parameters()), lr=cfg.g_lr)
+
+    # g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
     gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['g_gamma'])
     dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['d_gamma']) if disc is not None else None

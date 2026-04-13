@@ -162,13 +162,11 @@ class CombinedTrainer(BaseTrainer):
                 fake_font, fake_uni, fake_stru  = result_fake['ret']
                 # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
                 
-                self.add_gan_d_loss(real_stru, real_uni, fake_stru, fake_uni) # 증가해야함. 
-                # Discriminator 학습 빈도 조절: 2 step마다 학습 (판별자 과도 강화 방지)
-                # if self.step % 2 == 1:
-                self.d_optim.zero_grad()
-                self.d_backward()
-                self.d_optim.step()
-                self.d_scheduler.step()
+                # self.add_gan_d_loss(real_stru, real_uni, fake_stru, fake_uni) # 증가해야함. 
+                # self.d_optim.zero_grad()
+                # self.d_backward()
+                # self.d_optim.step()
+                # self.d_scheduler.step()
 
                 ################### generator ##################
                 # fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
@@ -177,11 +175,13 @@ class CombinedTrainer(BaseTrainer):
                 fake_font, fake_uni, fake_stru  = result_fake['ret']
                 # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
                 # self.add_gan_g_loss(real_stru, real_stru, fake_uni, fake_stru)
-                self.add_gan_g_loss(real_font, real_uni, fake_uni, fake_stru)
+                # self.add_gan_g_loss(real_font, real_uni, fake_uni, fake_stru)
 
                 # ------------------------------------------------------------------------------
                 # self.add_feature_matching_loss(real_feats, fake_feats)
-                # self.add_style_loss(out, input_imgs)
+                
+                # ✅ 2단계: 붓글씨 스타일 강제
+                self.add_style_loss(out, input_imgs)
                 # ------------------------------------------------------------------------------
 
                 self.add_l1_loss_only_mainstructure(out, trg_imgs)
@@ -189,10 +189,14 @@ class CombinedTrainer(BaseTrainer):
                 self.add_crossentropy_loss(indice_out, info[2], indice_self)
                 
                 # ------------ Style consistency loss: 같은 스타일의 multiple scale에서 일관성 보장 ------------
+                # style_consistency_loss = F.mse_loss(
+                #     F.normalize(sc_feats['last'], p=2, dim=1),
+                #     F.normalize(torch.nn.functional.adaptive_avg_pool2d(comb_style_latent, sc_feats['last'].shape[-2:]), p=2, dim=1)
+                # ) * 0.5
                 style_consistency_loss = F.mse_loss(
                     F.normalize(sc_feats['last'], p=2, dim=1),
                     F.normalize(torch.nn.functional.adaptive_avg_pool2d(comb_style_latent, sc_feats['last'].shape[-2:]), p=2, dim=1)
-                ) * 0.5
+                ) * 1.5
                 self.g_losses['style_consist'] = style_consistency_loss
                 # ---------------------------------------------------------------------------------------------
                 
@@ -204,7 +208,9 @@ class CombinedTrainer(BaseTrainer):
                 losses.updates(loss_dic, batch_size)  # accum loss stats
 
                 # EMA g
-                self.accum_g()
+                # self.accum_g()
+                self.accum_g(decay=0.999)
+                
                 # if self.step % self.cfg['tb_freq'] == 0:
                 #     tag_scalar_dic = self.baseplot(losses, discs, stats)
 

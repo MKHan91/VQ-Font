@@ -31,7 +31,9 @@ class CombTrainDataset(Dataset):
             self.cr_mapping = json.load(f)
         
         # ----- train_font_dict에서 "reference_images_v2" 제외 -----
-        excluded_fonts = {"reference_images_v2"}
+        # excluded_fonts = {"reference_images_v2"}
+        # ✅ 2단계: 붓글씨만 남기고 나머지 제외
+        excluded_fonts = set(train_font_dict.keys()) - {"reference_images_v2"}
         train_font_dict = {k: v for k, v in train_font_dict.items() if k not in excluded_fonts}
         # ----------------------------------------------------------
         
@@ -46,13 +48,23 @@ class CombTrainDataset(Dataset):
         print ('#'*30 + f' number of content_chars: {self.n_content_chars} ' + '#'*30)
         print ('#'*30 + f' number of train fonts: {self.n_fonts} ' + '#'*30)
         
+        # self.augment = T.Compose([
+        #     T.RandomApply([T.RandomAffine(degrees=10, 
+        #                                   translate=(0.1,0.1), 
+        #                                   scale=(0.9,1.1), 
+        #                                   shear=10)],
+        #                   p=0.5),
+        #     T.RandomPerspective(distortion_scale=0.2, p=0.3)
+        # ])
+        # ✅ 2단계: 붓글씨 특성에 맞게 augmentation 강화
         self.augment = T.Compose([
-            T.RandomApply([T.RandomAffine(degrees=10, 
-                                          translate=(0.1,0.1), 
-                                          scale=(0.9,1.1), 
-                                          shear=10)],
-                          p=0.5),
-            T.RandomPerspective(distortion_scale=0.2, p=0.3)
+            T.RandomApply([T.RandomAffine(degrees=15,
+                                        translate=(0.1, 0.1),
+                                        scale=(0.85, 1.15),
+                                        shear=15)], p=0.7),
+            T.RandomPerspective(distortion_scale=0.3, p=0.5),
+            T.RandomApply([T.GaussianBlur(3, sigma=(0.1, 1.5))], p=0.4),
+            T.RandomApply([T.ElasticTransform(alpha=30.0)], p=0.3),
         ])
         self.n_aug = 1  # augmentation 횟수
         
@@ -102,9 +114,11 @@ class CombTrainDataset(Dataset):
 
         while True:
             intersec_train_uni = self.get_random_trg(train_unis)
-            """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
-            style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
-            # style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
+            # """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
+            # style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
+            
+            # ✅ 2단계: 붓글씨로 고정
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
             if style_imgs is None: 
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
@@ -251,8 +265,10 @@ class CombTestDataset(Dataset):
                 imgs_ske[i] = (255-skeleton0.astype(np.uint8)*255)
                 
             b = [self.transform(Image.fromarray(img)) for img in imgs_ske]
-            a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
-            # a = [self.env_get(self.env, "reference_images_v2", uni, self.transform) for uni in style_unis]
+            
+            # a = [self.env_get(self.env, font_name, uni, self.transform) for uni in style_unis]
+            
+            a = [self.env_get(self.env, "reference_images_v2", uni, self.transform) for uni in style_unis]
             
         except:
             print (font_name, style_unis)

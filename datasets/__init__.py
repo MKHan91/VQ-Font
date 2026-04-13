@@ -113,10 +113,17 @@ def get_cv_comb_loaders(env, env_get, cfg, data_meta, transform, **kwargs):
     # sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis) #['6E6B']
     # sfs = uniform_sample(["reference_images_v2"], n_fonts)
     # sfs = sfs * n_fonts
+    
+    # # ✅ 현재 (1단계)
+    # sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
+    # sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis)
+    
+    # ✅ 2단계: 붓글씨 기준으로 복원
+    sfs = uniform_sample(["reference_images_v2"], n_fonts)
+    sus = uniform_sample(data_meta["train"]["reference_images_v2"], n_unis)
+    
     # sus = uniform_sample(data_meta["train"]["reference_images_v2"], n_unis)
     # sus = uniform_sample(data_meta["train"]["reference_images_v2"], None)
-    sfs = uniform_sample(data_meta["valid"]["seen_fonts"], n_fonts)
-    sus = uniform_sample(data_meta["valid"]["seen_unis"], n_unis)
     
     sfsu_dict = {fname: sus for fname in sfs}
     # sfuu_dict = {fname: uus for fname in sfs}
