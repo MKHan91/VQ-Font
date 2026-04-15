@@ -149,33 +149,34 @@ class CombinedTrainer(BaseTrainer):
                                                          trg_stru_ids)
                 
                 ################### discriminator ##################
-                # get discriminator outputs
-                # feature extraction for feature-matching
-                # real_font, real_uni, real_stru = self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
-                # fake_font, fake_uni, fake_stru = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids,trg_stru_ids)
-                result_real = self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
-                real_font, real_uni, real_stru  = result_real['ret']
-                # real_feats, real_rep            = result_real['feats_out'], result_real['rep']
-                
-                # [D 학습용]
-                result_fake = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
-                fake_font, fake_uni, fake_stru  = result_fake['ret']
-                # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
-                
-                # self.add_gan_d_loss(real_stru, real_uni, fake_stru, fake_uni) # 증가해야함. 
-                # self.d_optim.zero_grad()
-                # self.d_backward()
-                # self.d_optim.step()
-                # self.d_scheduler.step()
+                # get discriminator outputs (skip if discriminator is not present)
+                if self.disc is not None:
+                    # feature extraction for feature-matching
+                    result_real = self.disc(trg_imgs, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                    real_font, real_uni, real_stru  = result_real['ret']
+
+                    # [D 학습용]
+                    result_fake = self.disc(out.detach(), trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                    fake_font, fake_uni, fake_stru  = result_fake['ret']
+
+                    self.add_gan_d_loss(real_stru, real_uni, fake_stru, fake_uni)
+                    self.d_optim.zero_grad()
+                    self.d_backward()
+                    self.d_optim.step()
+                    self.d_scheduler.step()
+                else:
+                    real_font = real_uni = real_stru = None
+                    fake_font = fake_uni = fake_stru = None
 
                 ################### generator ##################
-                # fake_font, fake_uni,fake_stru = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
-                # [G 학습용]
-                result_fake = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
-                fake_font, fake_uni, fake_stru  = result_fake['ret']
+                # discriminator outputs for generator loss (if available)
+                if self.disc is not None:
+                    result_fake = self.disc(out, trg_style_ids, trg_uni_disc_ids, trg_stru_ids)
+                    fake_font, fake_uni, fake_stru  = result_fake['ret']
+                else:
+                    fake_font = fake_uni = fake_stru = None
                 # fake_feats, fake_rep            = result_fake['feats_out'], result_fake['rep']
-                # self.add_gan_g_loss(real_stru, real_stru, fake_uni, fake_stru)
-                # self.add_gan_g_loss(real_font, real_uni, fake_uni, fake_stru)
+                self.add_gan_g_loss(real_font, real_uni, fake_uni, fake_stru)
 
                 # ------------------------------------------------------------------------------
                 # self.add_feature_matching_loss(real_feats, fake_feats)
@@ -249,7 +250,8 @@ class CombinedTrainer(BaseTrainer):
                     self.writer.add_image("training/styled content image", out[rnd_idx].squeeze(0), self.step)
                     
                     self.writer.add_scalars({"optimization/learning_rate/generator": self.g_optim.param_groups[0]['lr']}, self.step)
-                    self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
+                    if self.d_optim is not None:
+                        self.writer.add_scalars({"optimization/learning_rate/discriminator": self.d_optim.param_groups[0]['lr']}, self.step)
                             
                     if (self.step >= self.cfg.save_freq) and (self.step % self.cfg['val_freq']==0):
                         self.save(loss_dic['g_total'], self.cfg['save'], self.cfg.get('save_freq', self.cfg['val_freq']))

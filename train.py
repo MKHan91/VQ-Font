@@ -201,40 +201,49 @@ def train(args, cfg, ddp_gpu=-1):
     #     if 'former' in name or 'mlp_head' in name or 'vqgan.decoder' in name:
     #         param.requires_grad_(True)   # 디코더/트랜스포머만 학습
     
+    # 인코더 동결: 가중치 로드 전에 모델만 로드하거나, 로드 후 옵티마이저를 새로 생성해야 합니다.
     for name, param in gen.named_parameters():
         if 'component_encoder' in name or 'content_encoder' in name:
             param.requires_grad_(False)
-        else:
-            param.requires_grad_(True)
 
+    # 체크포인트에서 모델 가중치만 로드 (optimizer 상태는 로드하지 않음)
+    st_step = 1
+    if args.vq_font_resume:
+        st_step, loss = load_checkpoint_torch(args.vq_font_resume, gen, disc, device=device)
+        loss = f"{loss:7.3f}" if loss is not None else "N/A"
+        logger.info(f"Resumed generator weights from {args.vq_font_resume} (Step {st_step-1}, Loss {loss})")
+    else:
+        if args.vq_gan_resume:
+            st_step, loss = load_checkpoint_torch(args.vq_gan_resume, gen, disc, device=device, load_codebook_only=True)
+            loss = f"{loss:7.3f}" if loss is not None else "N/A"
+            logger.info(f"Resumed VQGAN checkpoint from {args.vq_gan_resume} (Step {st_step-1}, Loss {loss})")
+
+    # 옵티마이저는 requires_grad=True인 파라미터만 포함하여 생성
     g_optim = optim.Adam(filter(lambda p: p.requires_grad, gen.parameters()), lr=cfg.g_lr)
-
-    # g_optim = optim.Adam(gen.parameters(),lr=cfg.g_lr)
     d_optim = optim.Adam(disc.parameters(), lr=cfg.d_lr) if disc is not None else None
     gen_scheduler = optim.lr_scheduler.StepLR(g_optim,step_size=cfg['step_size'],gamma=cfg['g_gamma'])
     dis_scheduler = optim.lr_scheduler.StepLR(d_optim,step_size=cfg['step_size'],gamma=cfg['d_gamma']) if disc is not None else None
     # gen_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(g_optim, T_0=cfg['step_size'], T_mult=1)
     # dis_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(d_optim, T_0=cfg['step_size'], T_mult=1) if disc is not None else None 
 
-    st_step = 1
-    # if args.resume:
-    if args.vq_font_resume:
-        st_step, loss = load_checkpoint(args.vq_font_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, device=device)
-        loss = f"{loss:7.3f}" if loss is not None else "N/A"
-        logger.info(f"Resumed checkpoint from {args.vq_font_resume} (Step {st_step-1}, Loss {loss})" )
+    # st_step = 1
+    # if args.vq_font_resume:
+    #     st_step, loss = load_checkpoint(args.vq_font_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, device=device)
+    #     loss = f"{loss:7.3f}" if loss is not None else "N/A"
+    #     logger.info(f"Resumed checkpoint from {args.vq_font_resume} (Step {st_step-1}, Loss {loss})" )
         
-    else:
-        if args.vq_gan_resume:
-            # st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
-            st_step, loss = load_checkpoint(args.vq_gan_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, 
-                                            device=device, load_codebook_only=True)
-            loss = f"{loss:7.3f}" if loss is not None else "N/A"
-            logger.info(f"Resumed checkpoint from {args.vq_gan_resume} (Step {st_step-1}, Loss {loss})" )
+    # else:
+    #     if args.vq_gan_resume:
+    #         # st_step, loss = load_checkpoint(args.resume, gen, disc, g_optim, d_optim, gen_scheduler, dis_scheduler)
+    #         st_step, loss = load_checkpoint(args.vq_gan_resume, gen, g_optim, gen_scheduler, disc, d_optim, dis_scheduler, 
+    #                                         device=device, load_codebook_only=True)
+    #         loss = f"{loss:7.3f}" if loss is not None else "N/A"
+    #         logger.info(f"Resumed checkpoint from {args.vq_gan_resume} (Step {st_step-1}, Loss {loss})" )
             
-            if cfg.overwrite:
-                st_step = 1
-            else:
-                pass
+    #         if cfg.overwrite:
+    #             st_step = 1
+    #         else:
+    #             pass
 
     evaluator = Evaluator(env,
                           env_get,
@@ -265,5 +274,5 @@ def main():
 
 
 if __name__ == "__main__":
-    device = 'cuda' if torch.cuda.is_available else 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     main()

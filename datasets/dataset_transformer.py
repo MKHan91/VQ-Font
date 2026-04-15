@@ -30,12 +30,13 @@ class CombTrainDataset(Dataset):
         with open(content_reference_json, 'r') as f:
             self.cr_mapping = json.load(f)
         
-        # ----- train_font_dict에서 "reference_images_v2" 제외 -----
-        # excluded_fonts = {"reference_images_v2"}
-        # ✅ 2단계: 붓글씨만 남기고 나머지 제외
-        excluded_fonts = set(train_font_dict.keys()) - {"reference_images_v2"}
-        train_font_dict = {k: v for k, v in train_font_dict.items() if k not in excluded_fonts}
-        # ----------------------------------------------------------
+        self.brush_font = "reference_images_v2"
+        # # ----- train_font_dict에서 "reference_images_v2" 제외 -----
+        # self.brush_font = "reference_images_v2"
+        # self.brush_unis = train_font_dict.get(self.brush_font, [])
+        # excluded_fonts = {self.brush_font}
+        # train_font_dict = {k: v for k, v in train_font_dict.items() if k not in excluded_fonts}
+        # # ----------------------------------------------------------
         
         self.train_font_dict = train_font_dict
         self.content_chars = sorted(list(self.cr_mapping.keys()))
@@ -104,10 +105,15 @@ class CombTrainDataset(Dataset):
     
         
     def __getitem__(self, index):
-        font_idx = index % self.n_fonts
+        # TODO: 다양한 비율로 해보기.
+        # 75% 확률로 붓글씨 폰트 강제 선택, 나머지 25%는 일반 폰트
+        if random.random() < 0.75 and self.brush_font in self.train_font_dict:
+            train_font_name = self.brush_font
+            font_idx = self.train_font_names.index(train_font_name)
+        else:
+            font_idx = index % self.n_fonts
+            train_font_name = self.train_font_names[font_idx]
         
-        train_font_name = self.train_font_names[font_idx]
-        # train_font_name = "reference_images"
         train_unis = self.train_font_dict[train_font_name]
         
         sample_index = torch.tensor([index])
@@ -115,10 +121,8 @@ class CombTrainDataset(Dataset):
         while True:
             intersec_train_uni = self.get_random_trg(train_unis)
             # """ 스타일 글자 이미지는 학습 글자 이미지에서 맵핑되는 글자 이미지를 가져옴. (cr_mapping에서 가져옴)"""
-            # style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
-            
-            # ✅ 2단계: 붓글씨로 고정
-            style_imgs, style_imgs_ske, _ = self.sample_pair_style("reference_images_v2", intersec_train_uni, train_unis)
+            style_imgs, style_imgs_ske, _ = self.sample_pair_style(train_font_name, intersec_train_uni, train_unis)
+
             if style_imgs is None: 
                 print('!!!!!!!!!!!!!!!!!!!!!!!! style image is None !!!!!!!!!!!!!!!!!!!!!!!!')
                 continue
