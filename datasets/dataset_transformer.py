@@ -341,7 +341,8 @@ class CombTestDataset(Dataset):
 
         return ret
     
-    
+
+# region - inference
 class FixedRefDataset(Dataset):
     '''
     FixedRefDataset
@@ -368,16 +369,40 @@ class FixedRefDataset(Dataset):
         self.ret_targets = ret_targets
 
         to_int_dict = {"chn": lambda x: int(x, 16),
-                       "kor": lambda x: ord(x),
+                    #    "kor": lambda x: ord(x),
+                       "kor": lambda x: int(x, 16),
                        "thai": lambda x: int("".join([f'{ord(each):04X}' for each in x]), 16)
                       }
 
         self.to_int = to_int_dict[language.lower()]
         
+        self.augment = T.Compose([
+            T.RandomApply([T.RandomAffine(degrees=15,
+                                        translate=(0.1, 0.1),
+                                        scale=(0.85, 1.15),
+                                        shear=15)], p=0.7),
+            T.RandomPerspective(distortion_scale=0.3, p=0.5),
+            T.RandomApply([T.GaussianBlur(3, sigma=(0.1, 1.5))], p=0.4),
+            T.RandomApply([T.ElasticTransform(alpha=30.0)], p=0.3),
+        ])
+        
     def sample_pair_style(self, font, trg_uni):
         assert trg_uni in self.cr_mapping, "infer uni is not in your content reference map"
         style_unis = self.cr_mapping[trg_uni]
-        imgs = torch.cat([self.env_get(self.env, font, uni, self.transform) for uni in style_unis])
+        
+        # ✅ 없는 reference는 보유 글자 중 랜덤 대체
+        avail_set = set(self.ref_unis)
+        safe_unis = []
+        for uni in style_unis:
+            if uni in avail_set:
+                safe_unis.append(uni)
+            else:
+                safe_unis.append(random.choice(self.ref_unis))
+
+        imgs = torch.cat([self.env_get(self.env, font, uni, self.transform)
+                        for uni in safe_unis])
+        
+        
         return imgs, list(style_unis)
 
 
@@ -388,17 +413,34 @@ class FixedRefDataset(Dataset):
         fidx = self.fonts.index(fname)
         avail_unis = list(set(self.ref_unis) - set([trg_uni]))
         style_imgs, style_unis = self.sample_pair_style(fname, trg_uni)
-        
+        # a = style_imgs[0].cpu().numpy()
         fidces = torch.tensor([fidx])
         
-        # 내가 수정한 부분
-        # --------------------------------------------------------------------------------
-        trg_uni_char = chr(int(trg_uni, 16))
-        style_unis_char = [chr(int(style_uni, 16)) for style_uni in style_unis]
-        # --------------------------------------------------------------------------------
         
-        trg_dec_uni =torch.tensor([self.to_int(trg_uni_char)])
-        style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis_char])
+        # -------------------- augmentation 적용 --------------------
+        style_imgs_aug = []
+        for img in style_imgs:
+            img = img.unsqueeze(0)
+            combined = self.augment(img)
+            
+            for _ in range(1):
+                style_imgs_aug.append(combined[0:1])
+        # ----------------------------------------------------------
+        
+        
+        style_imgs = torch.cat(style_imgs_aug)
+        
+        # # 내가 수정한 부분
+        # # --------------------------------------------------------------------------------
+        # trg_uni_char = chr(int(trg_uni, 16))
+        # style_unis_char = [chr(int(style_uni, 16)) for style_uni in style_unis]
+        # # --------------------------------------------------------------------------------
+        trg_dec_uni =torch.tensor([self.to_int(trg_uni)])
+        style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis])
+        
+        
+        # trg_dec_uni =torch.tensor([self.to_int(trg_uni_char)])
+        # style_dec_uni = torch.tensor([self.to_int(style_uni) for style_uni in style_unis_char])
         
         content_img = self.env_get(self.env, self.content_font_name, trg_uni, self.transform)
         ret = (

@@ -189,15 +189,17 @@ def eval_ckpt(args, cfg, target_root, gen):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_infer.yaml"])
-    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/vq_font_results/checkpoints/vq_font_v3.5/410000-vq_font_v3.5.ckpt")
+    parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_finetune.yaml"])
+    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/vq_font_results/checkpoints/brush_finetune_v1/last.ckpt")
+    # parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/test_last.ckpt")
     parser.add_argument("--content_font", help="path to content font", default="/home/dev/Project/VQ-Font/datasets/content_font_image/NanumBarunpenR")
     parser.add_argument("--img_path", help="path of the your test img directory.", default="/home/dev/Project/VQ-Font/datasets/train_font_image/reference_images_v2")
     parser.add_argument("--saving_root", help="saving directory.", default="./inference_results/target_style_images")
     args = parser.parse_args()
 
     cfg = Config(*args.config_paths, default="/home/dev/Project/VQ-Font/cfgs/defaults.yaml")
-    # target_folder_all = glob.glob(args.img_path+'/*')
+    # 추론 시 batch_size를 적절히 설정 (VRAM에 맞게 조절)
+    cfg.batch_size = 8
     
     
     g_kwargs = cfg.get("g_args", {})
@@ -210,6 +212,8 @@ if __name__ == "__main__":
 
     if "generator_ema" in weight:
         weight = weight["generator_ema"]
+    elif "generator" in weight:
+        weight = weight["generator"]
     gen.load_state_dict(weight)
     gen.eval()
     
@@ -221,16 +225,6 @@ if __name__ == "__main__":
     target_root = osp.join(saving_root, target_name)
     with open(cfg.content_reference_json, 'r') as f:
         cr_mapping = json.load(f)
-        
-        # raw_mapping = json.load(f)
-        # # "AC00" 같은 키를 실제 문자 '가'로 변환하여 새로운 딕셔너리 생성
-        # cr_mapping = {}
-        # for k, v in raw_mapping.items():
-        #     if len(k) > 1: # 'AC00' 처럼 16진수 문자열인 경우
-        #         char_key = chr(int(k, 16))
-        #         cr_mapping[char_key] = v
-        #     else: # 이미 '가' 처럼 문자인 경우
-        #         cr_mapping[k] = v
 
     os.makedirs(target_root, exist_ok=True)
 

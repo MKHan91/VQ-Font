@@ -50,7 +50,7 @@ def train_ddp(gpu, args, cfg, world_size):
 def setup_args_and_config():
     parser = argparse.ArgumentParser()
     # parser.add_argument("--name", default="vq_font_v4.0")
-    parser.add_argument("--name", default="brush_finetune_v1")
+    parser.add_argument("--name", default="brush_finetune_v2")
     # parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom.yaml"])
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_finetune.yaml"])
     parser.add_argument("--vq_gan_resume", default="/home/dev/Project/VQ-Font/taming/experiments/checkpoints/2026-01-11T10-58-28_custom_vqgan/epoch=000781.ckpt")
@@ -90,21 +90,21 @@ def setup_args_and_config():
     if cfg.save_freq % cfg.val_freq:
         raise ValueError("save_freq has to be multiple of val_freq.")
     
-    items = os.listdir(os.getcwd())
-    for item in items:
-        if item == "vq_font_results" or item == '.git' or item == '.gitignore': continue
+    # items = os.listdir(os.getcwd())
+    # for item in items:
+    #     if item == "vq_font_results" or item == '.git' or item == '.gitignore': continue
             
-        src = osp.join(os.getcwd(), item)
-        if item == 'datasets':
-            os.makedirs(args.codesdir / item, exist_ok=True)
-            shutil.copy2(osp.join(src, "__init__.py"), args.codesdir/item)
-            shutil.copy2(osp.join(src, "dataset_transformer.py"), args.codesdir/item)
-            shutil.copy2(osp.join(src, "datautils.py"), args.codesdir/item)
-            shutil.copy2(osp.join(src, "lmdbutils.py"), args.codesdir/item)
-            continue
+    #     src = osp.join(os.getcwd(), item)
+    #     if item == 'datasets':
+    #         os.makedirs(args.codesdir / item, exist_ok=True)
+    #         shutil.copy2(osp.join(src, "__init__.py"), args.codesdir/item)
+    #         shutil.copy2(osp.join(src, "dataset_transformer.py"), args.codesdir/item)
+    #         shutil.copy2(osp.join(src, "datautils.py"), args.codesdir/item)
+    #         shutil.copy2(osp.join(src, "lmdbutils.py"), args.codesdir/item)
+    #         continue
         
-        if not osp.isdir(src):
-            shutil.copy2(src, args.codesdir)
+    #     if not osp.isdir(src):
+    #         shutil.copy2(src, args.codesdir)
     
     return args, cfg
 
@@ -209,14 +209,17 @@ def train(args, cfg, ddp_gpu=-1):
     # 체크포인트에서 모델 가중치만 로드 (optimizer 상태는 로드하지 않음)
     st_step = 1
     if args.vq_font_resume:
-        st_step, loss = load_checkpoint_torch(args.vq_font_resume, gen, disc, device=device)
+        _, loss = load_checkpoint_torch(args.vq_font_resume, gen, disc, device=device)
         loss = f"{loss:7.3f}" if loss is not None else "N/A"
-        logger.info(f"Resumed generator weights from {args.vq_font_resume} (Step {st_step-1}, Loss {loss})")
+        logger.info(f"Resumed generator weights from {args.vq_font_resume} (Loss {loss})")
+        # 파인튜닝은 step 1부터 새로 시작
+        st_step = 1
     else:
         if args.vq_gan_resume:
-            st_step, loss = load_checkpoint_torch(args.vq_gan_resume, gen, disc, device=device, load_codebook_only=True)
+            _, loss = load_checkpoint_torch(args.vq_gan_resume, gen, disc, device=device, load_codebook_only=True)
             loss = f"{loss:7.3f}" if loss is not None else "N/A"
-            logger.info(f"Resumed VQGAN checkpoint from {args.vq_gan_resume} (Step {st_step-1}, Loss {loss})")
+            logger.info(f"Resumed VQGAN checkpoint from {args.vq_gan_resume} (Loss {loss})")
+            st_step = 1
 
     # 옵티마이저는 requires_grad=True인 파라미터만 포함하여 생성
     g_optim = optim.Adam(filter(lambda p: p.requires_grad, gen.parameters()), lr=cfg.g_lr)

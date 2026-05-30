@@ -307,6 +307,10 @@ class Evaluator:
                 in_imgs = in_imgs.half()
                 content_imgs = content_imgs.half()
 
+            # 학습과 동일하게 multi-scale 이미지 생성
+            in_imgs_crose = torch.nn.functional.interpolate(in_imgs, scale_factor=1.2, mode='bilinear')
+            in_imgs_fine = torch.nn.functional.interpolate(in_imgs, scale_factor=0.8, mode='bilinear')
+
             trg_unis_bak=trg_unis
             trg_unis = []
             for i in trg_unis_bak:
@@ -336,7 +340,7 @@ class Evaluator:
                 for i in range(3):
                     in_comp_ids.append(de[k[i]])
                     
-            out, _, A_M,_ ,_= gen.infer(in_style_ids,in_imgs,in_imgs,in_imgs,trg_style_ids,style_sample_index,trg_sample_index,content_imgs,in_stru_ids,trg_stru_ids,reduction=reduction,)
+            out, _, A_M,_ ,_= gen.infer(in_style_ids,in_imgs,in_imgs_crose,in_imgs_fine,trg_style_ids,style_sample_index,trg_sample_index,content_imgs,in_stru_ids,trg_stru_ids,reduction=reduction,)
             
             area1={'仇：人':[69,84,85,100,115,116,131,132,147,148,164,180,196,212]}
             area = {k:v for d in [area1] for k, v in d.items()}
