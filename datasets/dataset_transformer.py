@@ -347,6 +347,37 @@ class FixedRefDataset(Dataset):
     '''
     FixedRefDataset
     '''
+    # ── 한글 자모 분해 유틸리티 ──
+    CHOSUNG = list('ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ')
+    JUNGSUNG = list('ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ')
+    JONGSUNG = [None,'ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
+
+    @staticmethod
+    def decompose_jamo(hex_uni):
+        """유니코드 hex → (초성idx, 중성idx, 종성idx) 반환. 한글이 아니면 None."""
+        code = int(hex_uni, 16)
+        if code < 0xAC00 or code > 0xD7A3:
+            return None
+        offset = code - 0xAC00
+        cho = offset // (21 * 28)
+        jung = (offset % (21 * 28)) // 28
+        jong = offset % 28
+        return (cho, jung, jong)
+
+    @staticmethod
+    def jamo_similarity(jamo_a, jamo_b):
+        """두 자모 튜플 간 유사도 점수 (0~3). 높을수록 유사."""
+        if jamo_a is None or jamo_b is None:
+            return 0
+        score = 0
+        if jamo_a[0] == jamo_b[0]:  # 초성 일치
+            score += 1
+        if jamo_a[1] == jamo_b[1]:  # 중성 일치
+            score += 1
+        if jamo_a[2] == jamo_b[2]:  # 종성 일치
+            score += 1
+        return score
+
     def __init__(self, env, env_get, target_dict, ref_unis, k_shot, content_reference_json, content_font, language="chn",  transform=None, ret_targets=True):
         '''
         ref_unis: target unis
@@ -385,19 +416,41 @@ class FixedRefDataset(Dataset):
             T.RandomApply([T.GaussianBlur(3, sigma=(0.1, 1.5))], p=0.4),
             T.RandomApply([T.ElasticTransform(alpha=30.0)], p=0.3),
         ])
+
+        # ── 자모 유사도 매핑 사전 구축 (추론 속도 최적화) ──
+        self._ref_jamo_cache = {}
+        for uni in self.ref_unis:
+            self._ref_jamo_cache[uni] = self.decompose_jamo(uni)
         
+    def _find_most_similar(self, missing_uni):
+        """보유 글자 중 missing_uni와 자모가 가장 유사한 글자 반환."""
+        target_jamo = self.decompose_jamo(missing_uni)
+        if target_jamo is None:
+            return random.choice(self.ref_unis)
+        
+        best_uni = self.ref_unis[0]
+        best_score = -1
+        for ref_uni, ref_jamo in self._ref_jamo_cache.items():
+            score = self.jamo_similarity(target_jamo, ref_jamo)
+            if score > best_score:
+                best_score = score
+                best_uni = ref_uni
+                if score == 3:  # 완전 일치 (사실상 동일 글자)
+                    break
+        return best_uni
+
     def sample_pair_style(self, font, trg_uni):
         assert trg_uni in self.cr_mapping, "infer uni is not in your content reference map"
         style_unis = self.cr_mapping[trg_uni]
         
-        # ✅ 없는 reference는 보유 글자 중 랜덤 대체
+        # ✅ 없는 reference는 자모 유사도 기반으로 가장 비슷한 보유 글자로 대체
         avail_set = set(self.ref_unis)
         safe_unis = []
         for uni in style_unis:
             if uni in avail_set:
                 safe_unis.append(uni)
             else:
-                safe_unis.append(random.choice(self.ref_unis))
+                safe_unis.append(self._find_most_similar(uni))
 
         imgs = torch.cat([self.env_get(self.env, font, uni, self.transform)
                         for uni in safe_unis])
@@ -417,18 +470,16 @@ class FixedRefDataset(Dataset):
         fidces = torch.tensor([fidx])
         
         
-        # -------------------- augmentation 적용 --------------------
-        style_imgs_aug = []
-        for img in style_imgs:
-            img = img.unsqueeze(0)
-            combined = self.augment(img)
-            
-            for _ in range(1):
-                style_imgs_aug.append(combined[0:1])
+        # -------------------- augmentation 적용 (학습 시만) --------------------
+        if self.ret_targets:  # 학습 모드에서만 augmentation
+            style_imgs_aug = []
+            for img in style_imgs:
+                img = img.unsqueeze(0)
+                combined = self.augment(img)
+                for _ in range(1):
+                    style_imgs_aug.append(combined[0:1])
+            style_imgs = torch.cat(style_imgs_aug)
         # ----------------------------------------------------------
-        
-        
-        style_imgs = torch.cat(style_imgs_aug)
         
         # # 내가 수정한 부분
         # # --------------------------------------------------------------------------------

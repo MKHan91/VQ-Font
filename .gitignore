@@ -18,3 +18,5 @@ datasets/handwrite_dataset_v2
 taming/experiments
 *.png
 VQ-Font
+inference_results
+*.zip

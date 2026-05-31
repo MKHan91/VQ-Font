@@ -45,23 +45,9 @@ def getMetaDict(image_root_list, content_name, cr_mapping):
         }
         meta_dict[font_name]["charlist"] = all_ch_list
 
-        # adaptively choose all the possible inference unicodes according to the style unicodes you have.
-        infer_unis = []
-        style_set = set(hex(ord(ch))[2:].upper() for ch in all_ch_list)
-        for uni in cr_mapping.keys():
-            uni_pair = set(cr_mapping[uni])
-            if len(set.intersection(uni_pair, style_set)) < len(uni_pair):
-                continue
-            infer_unis.append(chr(int(uni, 16)))
-            
-            # # --- 수정된 안전한 변환 로직 ---
-            # if len(uni) > 1:
-            #     # 'AC00' 같은 16진수 문자열이면 문자로 변환
-            #     infer_unis.append(chr(int(uni, 16)))
-            # else:
-            #     # 이미 '가' 같은 문자라면 그대로 추가
-            #     infer_unis.append(uni)
-            # # ------------------------------
+        # 11,172자 전체 생성: 구성요소 필터 없이 cr_mapping의 모든 글자를 추론 대상으로 포함
+        # (없는 구성요소는 FixedRefDataset.sample_pair_style()에서 랜덤 대체됨)
+        infer_unis = [chr(int(uni, 16)) for uni in cr_mapping.keys()]
             
     meta_dict[content_name] = {
         "path": content_path,
@@ -190,8 +176,7 @@ def eval_ckpt(args, cfg, target_root, gen):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_paths", nargs="+", default=["/home/dev/Project/VQ-Font/cfgs/custom_finetune.yaml"])
-    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/vq_font_results/checkpoints/brush_finetune_v1/last.ckpt")
-    # parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/test_last.ckpt")
+    parser.add_argument("--weight", help="path to weight to evaluate", default="/home/dev/Project/VQ-Font/vq_font_results/checkpoints/brush_finetune_v2/last.ckpt")
     parser.add_argument("--content_font", help="path to content font", default="/home/dev/Project/VQ-Font/datasets/content_font_image/NanumBarunpenR")
     parser.add_argument("--img_path", help="path of the your test img directory.", default="/home/dev/Project/VQ-Font/datasets/train_font_image/reference_images_v2")
     parser.add_argument("--saving_root", help="saving directory.", default="./inference_results/target_style_images")
